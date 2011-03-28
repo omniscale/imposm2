@@ -54,6 +54,13 @@ There is a `mailing list at Google Groups <http://groups.google.com/group/imposm
 
 For commercial support `contact Omniscale <http://omniscale.com/contact>`_.
 
+Development
+-----------
+
+The source code is available at: https://bitbucket.org/olt/imposm/
+
+You can report any issues at: https://bitbucket.org/olt/imposm/issues
+
 Contents
 --------
 
