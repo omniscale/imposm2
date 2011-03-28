@@ -1,0 +1,8 @@
+\.pyc
+data/
+\.db
+\.o
+\.so
+doc/build
+.egg-info
+dist/
