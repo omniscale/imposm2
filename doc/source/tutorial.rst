@@ -12,7 +12,7 @@ Imposm comes with a little tool that creates all command required to create a ne
 
 ::
 
-  imposm-pgsql --help
+  imposm-psqldb --help
 
 You can save the output of ``imposm-pgsql`` and use it as a shell script for the ``postgres`` user::
 
