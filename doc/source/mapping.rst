@@ -3,6 +3,8 @@ Data Mapping
 
 The data mapping defines which `OSM feature types <http://wiki.openstreetmap.org/wiki/Map_Features>`_ should be imported in which table. The mapping is described with a Python file using classes from ``imposm.mapping`` package.
 
+See `defaultmapping.py <https://bitbucket.org/olt/imposm/src/tip/imposm/defaultmapping.py>`_ as an example.
+
 Tables
 ------
 

@@ -71,7 +71,7 @@ Each table contains at least four columns:
 
 Most tables contain additional columns. For example, all road tables contain `tunnle`, `bridge`, `z_order` and `ref` columns.
 
-For now you need to use the default mapping configuration as the documentation.
+For now you need to use the `default mapping configuration <https://bitbucket.org/olt/imposm/src/tip/imposm/defaultmapping.py>`_ as the documentation.
 
 .. .. data:: places
 .. 
