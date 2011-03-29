@@ -1,4 +1,5 @@
 include setup.py
+include LICENSE
 include imposm/900913.sql
 include imposm/cache/tc.c
 include imposm/cache/tc.pyx
