@@ -23,10 +23,9 @@ log = logging.getLogger(__name__)
 from imposm.mapping import UnionView, GeneralizedTable, Mapping
 
 class PostGISDB(object):
-    epsg = 900913
-    
     def __init__(self, db_conf):
         self.db_conf = db_conf
+        self.srid = int(db_conf['proj'].split(':')[1])
         self._insert_stmts = {}
         self._connection = None
         self._cur = None
@@ -111,9 +110,9 @@ class PostGISDB(object):
             extra_arg_names = ', ' + ', '.join(extra_arg_names)
         return """INSERT INTO %(tablename)s
             (osm_id, name, type, geometry %(extra_arg_names)s)
-            VALUES (%%s, %%s, %%s, ST_Transform(ST_GeomFromWKB(%%s, 4326), %(epsg)s)
+            VALUES (%%s, %%s, %%s, ST_Transform(ST_GeomFromWKB(%%s, 4326), %(srid)s)
                 %(extra_args)s)
-        """.strip() % dict(tablename=self.table_prefix + mapping.name, epsg=self.epsg,
+        """.strip() % dict(tablename=self.table_prefix + mapping.name, srid=self.srid,
             extra_arg_names=extra_arg_names, extra_args=extra_args)
 
 
@@ -144,8 +143,8 @@ class PostGISDB(object):
         """ % (tablename, extra_fields))
         cur.execute("""
             SELECT AddGeometryColumn ('', '%(tablename)s', 'geometry',
-                                      %(epsg)s, '%(pg_geometry_type)s', 2)
-        """ % dict(tablename=tablename, epsg=self.epsg,
+                                      %(srid)s, '%(pg_geometry_type)s', 2)
+        """ % dict(tablename=tablename, srid=self.srid,
                    pg_geometry_type=mapping.geom_type))
         cur.execute("""
             CREATE INDEX %(tablename)s_geom ON %(tablename)s USING GIST (geometry)
@@ -277,7 +276,8 @@ class PostGISUnionView(object):
         return stmt
 
     def _geom_table_stmt(self):
-        stmt = "insert into geometry_columns values ('', 'public', '%s', 'geometry', 2, 900913, 'GEOMETRY')" % self.view_name
+        stmt = "insert into geometry_columns values ('', 'public', '%s', 'geometry', 2, %d, 'GEOMETRY')" % (
+            self.view_name, self.db.srid)
         return stmt
 
     def _mapping_fields(self, mapping):
@@ -323,7 +323,8 @@ class PostGISGeneralizedTable(object):
             self.table_name, self.table_name)
 
     def _geom_table_stmt(self):
-        stmt = "insert into geometry_columns values ('', 'public', '%s', 'geometry', 2, 900913, 'GEOMETRY')" % self.table_name
+        stmt = "insert into geometry_columns values ('', 'public', '%s', 'geometry', 2, %d, 'GEOMETRY')" % (
+            self.table_name, self.db.srid)
         return stmt
 
     def _stmt(self):

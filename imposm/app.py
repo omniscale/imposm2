@@ -69,7 +69,8 @@ def main():
     parser.add_option('-h', '--host', dest='host', metavar='<host>')
     parser.add_option('-d', '--database', dest='db', metavar='<dbname>')
     parser.add_option('-U', '--user', dest='user', metavar='<user>')
-
+    parser.add_option('--proj', dest='proj', metavar='EPSG:900913')
+    
     parser.add_option('-c', '--concurrency', dest='concurrency', metavar='N',
                       type='int', default=n_cpu)
 
@@ -135,6 +136,12 @@ def main():
         if options.user:
             from getpass import getpass
             db_conf.password = getpass('password for %(user)s at %(host)s:' % db_conf)
+        
+        if options.proj:
+            if ':' not in options.proj:
+                print 'ERROR: --proj should be in EPSG:00000 format'
+                sys.exit(1)
+            db_conf.proj = options.proj
     
     logger = imposm.util.ProgressLog
     

@@ -108,6 +108,10 @@ Mapping
 
 You can change the default mapping the the `-m`/`--mapping-file` option. See :doc:`mapping` for more information.
 
+Projection
+~~~~~~~~~~
+
+Imposm uses the the web mercator projection (``EPSG:900913``) for the imports. You can change this with the ``--proj`` option.
 
 Multipolygon Relation Building
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
