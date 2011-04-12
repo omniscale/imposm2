@@ -17,13 +17,13 @@ from multiprocessing import Process, JoinableQueue
 
 from imposm.parser import OSMParser
 from imposm.util import ParserProgress, setproctitle
-from imposm.cache import OSMCache
 
 class ImposmReader(object):
-    def __init__(self, mapping, pool_size=2, merge=False, logger=None):
+    def __init__(self, mapping, cache, pool_size=2, merge=False, logger=None):
         self.pool_size = pool_size
         self.mapper = mapping
         self.merge = merge
+        self.cache = cache
         self.reader = None
         self.logger = logger
         self.estimated_coords = 0
@@ -38,8 +38,9 @@ class ImposmReader(object):
         log_proc.start()
         
         marshal = True
-        
-        cache = OSMCache('.')
+        if self.merge:
+            # merging needs access to unmarshaled data
+            marshal = False
         
         estimates = {
             'coords': self.estimated_coords,
@@ -48,20 +49,25 @@ class ImposmReader(object):
             'relations': self.estimated_coords//1000,
         }
         
-        coords_writer = CacheWriterProcess(coords_queue, cache.coords_cache,
-            estimates['coords'], log=partial(log_proc.log, 'coords'), marshaled_data=marshal)
+        coords_writer = CacheWriterProcess(coords_queue, self.cache.coords_cache,
+            estimates['coords'], log=partial(log_proc.log, 'coords'),
+            marshaled_data=marshal)
         coords_writer.start()
 
-        nodes_writer = CacheWriterProcess(nodes_queue, cache.nodes_cache,
-            estimates['nodes'], log=partial(log_proc.log, 'nodes'), marshaled_data=marshal)
+        nodes_writer = CacheWriterProcess(nodes_queue, self.cache.nodes_cache,
+            estimates['nodes'], log=partial(log_proc.log, 'nodes'),
+            marshaled_data=marshal)
         nodes_writer.start()
 
-        ways_writer = CacheWriterProcess(ways_queue, cache.ways_cache, estimates['ways'],
-            log=partial(log_proc.log, 'ways'), marshaled_data=marshal)
+
+        ways_writer = CacheWriterProcess(ways_queue, self.cache.ways_cache,
+            estimates['ways'], merge=self.merge, log=partial(log_proc.log, 'ways'),
+            marshaled_data=marshal)
         ways_writer.start()
         
-        relations_writer = CacheWriterProcess(relations_queue, cache.relations_cache,
-            estimates['relations'], log=partial(log_proc.log, 'relations'), marshaled_data=marshal)
+        relations_writer = CacheWriterProcess(relations_queue, self.cache.relations_cache,
+            estimates['relations'], merge=self.merge, log=partial(log_proc.log, 'relations'),
+            marshaled_data=marshal)
         relations_writer.start()
         
         log_proc.message('coords: %dk nodes: %dk ways: %dk relations: %dk (estimated)' % (

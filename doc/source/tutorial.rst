@@ -38,7 +38,12 @@ Imposm distributes the work across multiple processes to leverage modern multico
 
   imposm --read --concurrency 2 europe.osm.pbf
 
-.. note:: Imposm creates the cache files (``imposm_*.cache``) in the current working directory. You need to remove these files manually at the moment after you finished the whole writing process and before you start reading a different dataset.
+
+Cache files
+~~~~~~~~~~~
+
+Imposm stores the cache files in the current working directory. You can change that path with ``--cache-dir``. Imposm can merge multiple OSM files into the same cache (e.g. when combining multiple extracts) with the ``--merge-cache`` option or it can overwrite existing caches with ``--overwrite-cache``.
+
 
 Writing
 -------

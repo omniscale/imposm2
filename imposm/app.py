@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from __future__ import with_statement
+import glob
 import sys
 import os
 import optparse
@@ -34,6 +35,7 @@ import imposm.util
 import imposm.version
 from imposm.writer import ImposmWriter
 from imposm.db import DB
+from imposm.cache import OSMCache
 from imposm.reader import ImposmReader
 from imposm.mapping import TagMapper
 
@@ -74,9 +76,14 @@ def main():
     parser.add_option('-c', '--concurrency', dest='concurrency', metavar='N',
                       type='int', default=n_cpu)
 
-    parser.add_option('--merge', dest='merge', default=False,
+    parser.add_option('--merge-cache', dest='merge_cache', default=False,
         action='store_true')
-
+    parser.add_option('--overwrite-cache', dest='overwrite_cache', default=False,
+        action='store_true')
+    parser.add_option('--cache-dir', dest='cache_dir', default='.',
+        help="path where node/ways/relations should be cached [current working dir]")
+    
+    
     parser.add_option('--table-prefix',
         dest='table_prefix', default='osm_new_', metavar='osm_new_',
         help='prefix for imported tables')
@@ -148,11 +155,27 @@ def main():
     imposm_timer = imposm.util.Timer('imposm', logger)
     
     if options.read:
+        if not options.merge_cache:
+            cache_files = glob.glob(os.path.join(options.cache_dir, 'imposm_*.cache'))
+            if cache_files:
+                if not options.overwrite_cache:
+                    print (
+                        "ERROR: found existing cache files in '%s'. "
+                        'remove files or use --overwrite-cache or --merge-cache.'
+                        % os.path.abspath(options.cache_dir)
+                    )
+                    sys.exit(2)
+                for cache_file in cache_files:
+                    os.unlink(cache_file)
+    
+    cache = OSMCache(options.cache_dir)
+    
+    if options.read:
         read_timer = imposm.util.Timer('reading', logger)
         
         if args:
-            reader = ImposmReader(tag_mapping, merge=options.merge, pool_size=options.concurrency,
-                                  logger=logger)
+            reader = ImposmReader(tag_mapping, cache=cache, merge=options.merge_cache,
+                pool_size=options.concurrency, logger=logger)
             reader.estimated_coords = imposm.util.estimate_records(args)
             for arg in args:
                 logger.message('## reading %s' % arg)
@@ -175,8 +198,9 @@ def main():
             db.create_views(mappings, ignore_errors=True)
             db.connection.commit()
 
-        writer = ImposmWriter(tag_mapping, db, pool_size=options.concurrency,
-                              logger=logger, dry_run=options.dry_run)
+        writer = ImposmWriter(tag_mapping, db, cache=cache, 
+            pool_size=options.concurrency, logger=logger,
+            dry_run=options.dry_run)
         writer.relations()
         writer.ways()
         writer.nodes()

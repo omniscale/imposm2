@@ -34,7 +34,7 @@ class Node(object):
         pass
 
     def to_tuple(self):
-        return self.osm_id, self.tags, self.coords
+        return self.osm_id, self.tags, self.coord
 
 class Way(object):
     def __init__(self, osm_id, tags, refs, inserted=False):
