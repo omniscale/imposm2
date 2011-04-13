@@ -1,4 +1,5 @@
 from imposm.base import Node, Way, Relation
+from libc.stdint cimport uint32_t, int64_t
 
 cdef extern from "Python.h":
     object PyString_FromStringAndSize(char *s, Py_ssize_t len)
@@ -63,22 +64,22 @@ cdef extern from "tcbdb.h":
     void *tcbdbcurval3(BDBCUR *cur, int *sp)
 
 
-DEF COORD_FACTOR = 23860929.422222223 # (2<<32)/360.0
+DEF COORD_FACTOR = 11930464.7083 # ((2<<31)-1)/360.0
 
-cdef long _coord_to_long(double x) nogil:
-    return <long>((x + 180.0) * COORD_FACTOR)
+cdef uint32_t _coord_to_uint32(double x) nogil:
+    return <uint32_t>((x + 180.0) * COORD_FACTOR)
 
-cdef double _long_to_coord(long x) nogil:
+cdef double _uint32_to_coord(uint32_t x) nogil:
     return <double>((x / COORD_FACTOR) - 180.0)
 
 ctypedef struct coord:
-    long x
-    long y
+    uint32_t x
+    uint32_t y
 
 cdef inline coord coord_struct(double x, double y) nogil:
     cdef coord p
-    p.x = _coord_to_long(x)
-    p.y = _coord_to_long(y)
+    p.x = _coord_to_uint32(x)
+    p.y = _coord_to_uint32(y)
     return p
 
 _modes = {
@@ -113,18 +114,18 @@ cdef class BDB:
         else:
             tcbdbtune(self.db, -1, -1, -1, 5, 13, BDBTLARGE | BDBTDEFLATE)
     
-    def get(self, long long osmid):
+    def get(self, int64_t osmid):
         """
         Return object with given id.
         Returns None if id is not stored.
         """
         cdef void *ret
         cdef int ret_size
-        ret = tcbdbget3(self.db, <char *>&osmid, sizeof(long long), &ret_size)
+        ret = tcbdbget3(self.db, <char *>&osmid, sizeof(int64_t), &ret_size)
         if not ret: return None
         return self._obj(osmid, PyMarshal_ReadObjectFromString(<char *>ret, ret_size))
 
-    cdef object _obj(self, long long osmid, data):
+    cdef object _obj(self, int64_t osmid, data):
         """
         Create an object from the id and unmarshaled data.
         Should be overridden by subclasses.
@@ -143,10 +144,10 @@ cdef class BDB:
             return iter([])
         return self
 
-    def __contains__(self, long long osmid):
+    def __contains__(self, int64_t osmid):
         cdef void *ret
         cdef int ret_size
-        ret = tcbdbget3(self.db, <char *>&osmid, sizeof(long long), &ret_size);
+        ret = tcbdbget3(self.db, <char *>&osmid, sizeof(int64_t), &ret_size);
         if ret:
             return 1
         else:
@@ -159,7 +160,7 @@ cdef class BDB:
         """
         Return next item as object.
         """
-        cdef long long osmid
+        cdef int64_t osmid
 
         if not self._cur: raise StopIteration
 
@@ -181,7 +182,7 @@ cdef class BDB:
         cdef int size
         cdef void *ret
         ret = tcbdbcurkey3(self._cur, &size)
-        osmid = (<long long *>ret)[0]
+        osmid = (<int64_t *>ret)[0]
         ret = tcbdbcurval3(self._cur, &size)
         value = PyMarshal_ReadObjectFromString(<char *>ret, size)
         return osmid, value
@@ -203,50 +204,50 @@ cdef class CoordDB(BDB):
     def put_marshaled(self, osmid, x, y):
         return self._put(osmid, x, y)
     
-    cdef bint _put(self, long long osmid, double x, double y) nogil:
+    cdef bint _put(self, int64_t osmid, double x, double y) nogil:
         cdef coord p = coord_struct(x, y)
-        return tcbdbput(self.db, <char *>&osmid, sizeof(long long), <char *>&p, sizeof(coord))
+        return tcbdbput(self.db, <char *>&osmid, sizeof(int64_t), <char *>&p, sizeof(coord))
 
-    def get(self, long long osmid):
+    def get(self, int64_t osmid):
         cdef coord *value
         cdef int ret_size
-        value = <coord *>tcbdbget3(self.db, <char *>&osmid, sizeof(long long), &ret_size)
+        value = <coord *>tcbdbget3(self.db, <char *>&osmid, sizeof(int64_t), &ret_size)
         if not value: return
-        return _long_to_coord(value.x), _long_to_coord(value.y)
+        return _uint32_to_coord(value.x), _uint32_to_coord(value.y)
 
     def get_coords(self, refs):
         cdef coord *value
         cdef int ret_size
-        cdef long long osmid
+        cdef int64_t osmid
         coords = list()
         for osmid in refs:
-            value = <coord *>tcbdbget3(self.db, <char *>&osmid, sizeof(long long), &ret_size)
+            value = <coord *>tcbdbget3(self.db, <char *>&osmid, sizeof(int64_t), &ret_size)
             if not value: return
-            coords.append((_long_to_coord(value.x), _long_to_coord(value.y)))
+            coords.append((_uint32_to_coord(value.x), _uint32_to_coord(value.y)))
         
         return coords
 
     cdef object _get_cur(self):
         cdef int size
-        cdef long long osmid
+        cdef int64_t osmid
         cdef void *ret
         cdef coord *value
         ret = tcbdbcurkey3(self._cur, &size)
-        osmid = (<long long *>ret)[0]
+        osmid = (<int64_t *>ret)[0]
         value = <coord *>tcbdbcurval3(self._cur, &size)
-        return osmid, (_long_to_coord(value.x), _long_to_coord(value.y))
+        return osmid, (_uint32_to_coord(value.x), _uint32_to_coord(value.y))
 
-    cdef object _obj(self, long long osmid, data):
+    cdef object _obj(self, int64_t osmid, data):
         return osmid, data
 
 cdef class NodeDB(BDB):
     def put(self, osmid, tags, pos):
         return self.put_marshaled(osmid, PyMarshal_WriteObjectToString((tags, pos), 2))
     
-    def put_marshaled(self, long long osmid, data):
-        return tcbdbput(self.db, <char *>&osmid, sizeof(long long), <char *>data, len(data))
+    def put_marshaled(self, int64_t osmid, data):
+        return tcbdbput(self.db, <char *>&osmid, sizeof(int64_t), <char *>data, len(data))
 
-    cdef object _obj(self, long long osmid, data):
+    cdef object _obj(self, int64_t osmid, data):
         return Node(osmid, data[0], data[1])
 
 cdef class RefTagDB(BDB):
@@ -256,13 +257,13 @@ cdef class RefTagDB(BDB):
     def put(self, osmid, tags, refs):
         return self.put_marshaled(osmid, PyMarshal_WriteObjectToString((tags, refs), 2))
     
-    def put_marshaled(self, long long osmid, data):
-        return tcbdbput(self.db, <char *>&osmid, sizeof(long long), <char *>data, len(data))
+    def put_marshaled(self, int64_t osmid, data):
+        return tcbdbput(self.db, <char *>&osmid, sizeof(int64_t), <char *>data, len(data))
 
 cdef class WayDB(RefTagDB):
-    cdef object _obj(self, long long osmid, data):
+    cdef object _obj(self, int64_t osmid, data):
         return Way(osmid, data[0], data[1])
 
 cdef class RelationDB(RefTagDB):
-    cdef object _obj(self, long long osmid, data):
+    cdef object _obj(self, int64_t osmid, data):
         return Relation(osmid, data[0], data[1])
