@@ -1,0 +1,19 @@
+Changelog
+---------
+
+2.1.2 2011-04-13
+~~~~~~~~~~~~~~~~
+
+- make it work on 32bit systems
+
+2.1.1 2011-04-12
+~~~~~~~~~~~~~~~~
+
+- new ``--proj`` option to change DB projection from EPSG:900913
+- abort if there are existing cache files
+- new ``--merge-cache`` and ``--overwrite-cache`` options
+
+2.1.0 2011-03-29
+~~~~~~~~~~~~~~~~
+
+- first open source release
