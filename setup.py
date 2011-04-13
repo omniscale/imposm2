@@ -54,7 +54,7 @@ setup(
     name = "imposm",
     version = version,
     description='OpenStreetMap importer for PostGIS.',
-    long_description=open('README').read(),
+    long_description=open('README').read() + open('CHANGES').read(),
     author = "Oliver Tonnhofer",
     author_email = "olt@omniscale.de",
     url='http://imposm.org/',
