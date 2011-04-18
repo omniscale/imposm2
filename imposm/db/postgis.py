@@ -107,8 +107,8 @@ class PostGISDB(object):
         if mapping.fields:
             extra_arg_names = [n for n, t in mapping.fields]
             extra_args = ', %s' * len(extra_arg_names)
-            extra_arg_names = ', ' + ', '.join(extra_arg_names)
-        return """INSERT INTO %(tablename)s
+            extra_arg_names = ', ' + ', '.join('"' + name + '"' for name in extra_arg_names)
+        return """INSERT INTO "%(tablename)s"
             (osm_id, name, type, geometry %(extra_arg_names)s)
             VALUES (%%s, %%s, %%s, ST_Transform(ST_GeomFromWKB(%%s, 4326), %(srid)s)
                 %(extra_args)s)
@@ -125,16 +125,16 @@ class PostGISDB(object):
         cur = self.connection.cursor()
         cur.execute('SAVEPOINT pre_drop_tables')
         try:
-            cur.execute("DROP TABLE " + tablename + " CASCADE")
+            cur.execute('DROP TABLE "' + tablename + '" CASCADE')
         except psycopg2.ProgrammingError:
             cur.execute('ROLLBACK TO SAVEPOINT pre_drop_tables')
 
         extra_fields = ''
         for n, t in mapping.fields:
-            extra_fields += ', %s %s ' % (n, t.column_type)
+            extra_fields += ', "%s" %s ' % (n, t.column_type)
 
         cur.execute("""
-            CREATE TABLE %s (
+            CREATE TABLE "%s" (
                 osm_id INT4 PRIMARY KEY,
                 name VARCHAR(255),
                 type VARCHAR(255)
@@ -147,7 +147,7 @@ class PostGISDB(object):
         """ % dict(tablename=tablename, srid=self.srid,
                    pg_geometry_type=mapping.geom_type))
         cur.execute("""
-            CREATE INDEX %(tablename)s_geom ON %(tablename)s USING GIST (geometry)
+            CREATE INDEX "%(tablename)s_geom" ON "%(tablename)s" USING GIST (geometry)
         """ % dict(tablename=tablename))
     
     def swap_tables(self, new_prefix, existing_prefix, backup_prefix):
@@ -186,21 +186,21 @@ class PostGISDB(object):
         
         for table_name in existing_tables:
             rename_to = table_name.replace(existing_prefix, backup_prefix)
-            cur.execute("ALTER TABLE %s RENAME TO %s" % (table_name, rename_to))
+            cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
             if table_name + '_geom' in existing_indexes:
-                cur.execute("ALTER INDEX %s RENAME TO %s" % (table_name + '_geom', rename_to + '_geom'))
+                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_geom', rename_to + '_geom'))
             if table_name + '_pkey' in existing_indexes:
-                cur.execute("ALTER INDEX %s RENAME TO %s" % (table_name + '_pkey', rename_to + '_pkey'))
-            cur.execute("UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s", (rename_to, table_name))
+                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_pkey', rename_to + '_pkey'))
+            cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
             
         for table_name in new_tables:
             rename_to = table_name.replace(new_prefix, existing_prefix)
-            cur.execute("ALTER TABLE %s RENAME TO %s" % (table_name, rename_to))
+            cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
             if table_name + '_geom' in new_indexes:
-                cur.execute("ALTER INDEX %s RENAME TO %s" % (table_name + '_geom', rename_to + '_geom'))
+                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_geom', rename_to + '_geom'))
             if table_name + '_pkey' in new_indexes:
-                cur.execute("ALTER INDEX %s RENAME TO %s" % (table_name + '_pkey', rename_to + '_pkey'))
-            cur.execute("UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s", (rename_to, table_name))
+                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_pkey', rename_to + '_pkey'))
+            cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
         
     def remove_tables(self, prefix):
         cur = self.connection.cursor()
@@ -218,7 +218,7 @@ class PostGISDB(object):
         remove_views = [row[0] for row in cur]
         
         for view_name in remove_views:
-            cur.execute("DROP VIEW %s CASCADE" % (view_name, ))
+            cur.execute('DROP VIEW "%s" CASCADE' % (view_name, ))
             cur.execute("DELETE FROM geometry_columns WHERE f_table_name = %s", (view_name, ))
         
     
@@ -242,7 +242,7 @@ class PostGISDB(object):
     def optimize_table(self, table_name, idx_name):
         cur = self.connection.cursor()
         print 'Clustering table %s' % table_name
-        cur.execute("CLUSTER %s ON %s" % (idx_name, table_name))
+        cur.execute('CLUSTER "%s" ON "%s"' % (idx_name, table_name))
         self.connection.commit()
 
     def vacuum(self):
@@ -265,14 +265,15 @@ class PostGISUnionView(object):
         selects = []
         for mapping in self.mapping.mappings:
             field_str = ', '.join(self._mapping_fields(mapping))
-            selects.append("SELECT osm_id, name, type, geometry, %s,"
-                " '%s' as class from %s" % (
+            selects.append("""SELECT osm_id, name, type, geometry, %s,
+                '%s' as class from "%s" """ % (
                 field_str, mapping.classname or mapping.name, self.db.to_tablename(mapping.name)))
 
         selects = '\nUNION ALL\n'.join(selects)
 
-        stmt = 'CREATE OR REPLACE VIEW %s as (\n%s\n)' % (self.view_name, selects)
-
+        stmt = 'CREATE OR REPLACE VIEW "%s" as (\n%s\n)' % (self.view_name, selects)
+        
+        print stmt
         return stmt
 
     def _geom_table_stmt(self):
@@ -285,7 +286,7 @@ class PostGISUnionView(object):
         fields = []
         for name, default in self.mapping.fields:
             if name in mapping_fields:
-                fields.append(name)
+                fields.append('"' + name + '"')
             else:
                 if default is None:
                     default = 'null'
@@ -293,7 +294,7 @@ class PostGISUnionView(object):
                     default = "'%s'" % default
                 else:
                     default = str(default)
-                fields.append(default + ' as ' + name)
+                fields.append(default + ' as "' + name + '"')
         return fields
 
     def create(self, ignore_errors):
@@ -319,7 +320,7 @@ class PostGISGeneralizedTable(object):
         self.table_name = db.to_tablename(mapping.name)
 
     def _idx_stmt(self):
-        return "CREATE INDEX %s_geom ON %s USING GIST (geometry)" % (
+        return 'CREATE INDEX "%s_geom" ON "%s" USING GIST (geometry)' % (
             self.table_name, self.table_name)
 
     def _geom_table_stmt(self):
@@ -329,8 +330,8 @@ class PostGISGeneralizedTable(object):
 
     def _stmt(self):
         fields = ', '.join([n for n, t in self.mapping.fields])
-        return "CREATE TABLE %s AS (SELECT osm_id, name, type, %s,"\
-            "ST_Simplify(geometry, %f) as geometry from %s)" % (
+        return """CREATE TABLE "%s" AS (SELECT osm_id, name, type, %s,
+            ST_Simplify(geometry, %f) as geometry from "%s")""" % (
             self.table_name, fields, self.mapping.tolerance, self.db.to_tablename(self.mapping.origin.name))
 
     def create(self):
@@ -338,7 +339,7 @@ class PostGISGeneralizedTable(object):
         cur.execute('BEGIN')
         try:
             cur.execute('SAVEPOINT pre_drop_table')
-            cur.execute("DROP TABLE " + self.table_name + " CASCADE")
+            cur.execute('DROP TABLE "%s" CASCADE' % (self.table_name, ))
         except psycopg2.ProgrammingError:
             cur.execute('ROLLBACK TO SAVEPOINT pre_drop_table')
         
