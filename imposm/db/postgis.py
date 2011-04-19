@@ -273,7 +273,6 @@ class PostGISUnionView(object):
 
         stmt = 'CREATE OR REPLACE VIEW "%s" as (\n%s\n)' % (self.view_name, selects)
         
-        print stmt
         return stmt
 
     def _geom_table_stmt(self):
