@@ -23,12 +23,17 @@ import multiprocessing
 from imposm.util import setproctitle
 
 try:
-    import shapely_speedups
+    import shapely.speedups
+    if shapely.speedups.available:
+        print 'Enabling Shapely speedups.'
+        shapely.speedups.enable()
 except ImportError:
-    pass
-else:
-    print 'patching shapely'
-    shapely_speedups.patch_shapely()
+    try:
+        import shapely_speedups
+        print 'Patching Shapely.'
+        shapely_speedups.patch_shapely()
+    except ImportError:
+        pass
 
 import imposm.mapping
 import imposm.util
