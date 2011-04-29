@@ -49,6 +49,8 @@ Tables like above but with simplified geometries (tolerance 50m)
 - mainroads_gen1
 - railways_gen1
 
+.. note:: You need to change the tolerance values if your projection does not use meters (e.g. EPSG:4326).
+
 Views
 ~~~~~
 
