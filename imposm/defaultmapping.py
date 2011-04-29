@@ -23,6 +23,7 @@ from imposm.mapping import (
 db_conf = Options(
     # db='osm',
     host='localhost',
+    port=5432,
     user='osm',
     password='osm',
     sslmode='allow',

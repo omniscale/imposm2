@@ -74,6 +74,7 @@ def main():
     parser.add_option('-m', '--mapping-file', dest='mapping_file',
         metavar='<file>')
     parser.add_option('-h', '--host', dest='host', metavar='<host>')
+    parser.add_option('-p', '--port', dest='port', metavar='<port>')
     parser.add_option('-d', '--database', dest='db', metavar='<dbname>')
     parser.add_option('-U', '--user', dest='user', metavar='<user>')
     parser.add_option('--proj', dest='proj', metavar='EPSG:900913')
@@ -141,6 +142,7 @@ def main():
         or options.remove_backup_tables or options.recover_tables):
         db_conf = mappings['db_conf']
         db_conf.host = options.host or db_conf.host
+        db_conf.port = options.port or getattr(db_conf, 'port', None) #backw. compat
         if not options.db:
             parser.error('-d/--database is required for this mode')
         db_conf.db = options.db or db_conf.db

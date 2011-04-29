@@ -40,12 +40,16 @@ class PostGISDB(object):
     @property
     def connection(self):
         if not self._connection:
+            kw = {}
+            if self.db_conf.port:
+                kw['port'] = int(self.db_conf.port)
             self._connection = psycopg2.connect(
                 database=self.db_conf.db,
                 host=self.db_conf.host,
                 user=self.db_conf.user,
                 password=self.db_conf.password,
                 sslmode=self.db_conf.get('sslmode', 'allow'),
+                **kw
             )
             self._connection.set_isolation_level(
                 psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
