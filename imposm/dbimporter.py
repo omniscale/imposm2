@@ -144,7 +144,7 @@ class RelationProcess(ImporterProcess):
                     if str(ex):
                         log.debug(ex)
                     continue
-                mappings = self.mapper.for_ways(relation.tags)
+                mappings = self.mapper.for_relations(relation.tags)
                 if mappings:
                     inserted = self.insert(mappings, relation.osm_id, relation.geom, relation.tags)
                     if inserted:

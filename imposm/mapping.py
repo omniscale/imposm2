@@ -129,6 +129,9 @@ class TagMapper(object):
         return (self._mapping_for_tags(self.lines, tags) + 
                 self._mapping_for_tags(self.polygons, tags))
 
+    def for_relations(self, tags):
+        return self._mapping_for_tags(self.polygons, tags)
+
     def _tag_filter(self, filter_tags):
         filter_tags.add('name')
         def filter(tags):
