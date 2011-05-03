@@ -26,20 +26,6 @@ class IncompletePolygonError(Exception):
     pass
 
 
-TOLERANCE_DEEGREES = 1e-8
-TOLERANCE_METERS = 1e-3
-
-def validate_and_simplify(geom, meter_units=False):
-    orig_geom = geom
-    if not geom.is_valid:
-        tolerance = TOLERANCE_METERS if meter_units else TOLERANCE_DEEGREES
-        geom = geom.simplify(tolerance, False)
-        if not geom.is_valid:
-            raise InvalidGeometryError('geometry is invalid, could not simplify: %s' %
-                                       orig_geom)
-    return geom
-
-
 class GeomBuilder(object):
     def build(self, osm_elem):
         # TODO is this method still in use?
@@ -119,7 +105,7 @@ class PolygonBuilder(GeomBuilder):
         if not validate:
             return geom
         try:
-            return validate_and_simplify(geom)
+            return geom.buffer(0)
         except InvalidGeometryError:
             raise InvalidGeometryError('invalid geometry for %s: %s, %s' %
                                        (osm_elem.osm_id, geom, osm_elem.coords))
