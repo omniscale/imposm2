@@ -14,7 +14,7 @@
 
 import os
 
-from . tc import CoordDB, NodeDB, WayDB, RelationDB
+from . tc import CoordDB, NodeDB, WayDB, InsertedWayDB, RelationDB
 
 class OSMCache(object):
     def __init__(self, path, suffix='imposm_', prefix='.cache'):
@@ -24,6 +24,7 @@ class OSMCache(object):
         self.coords_fname = os.path.join(path, suffix + 'coords' + prefix) 
         self.nodes_fname = os.path.join(path, suffix + 'nodes' + prefix) 
         self.ways_fname = os.path.join(path, suffix + 'ways' + prefix) 
+        self.inserted_ways_fname = os.path.join(path, suffix + 'inserted_ways' + prefix) 
         self.relations_fname = os.path.join(path, suffix + 'relations' + prefix) 
         self.caches = {}
 
@@ -40,6 +41,13 @@ class OSMCache(object):
 
     def ways_cache(self, mode='r', estimated_records=None):
         return self._x_cache(self.ways_fname, WayDB, mode, estimated_records)
+
+    def inserted_ways_cache(self, mode='r', estimated_records=None):
+        return self._x_cache(self.inserted_ways_fname, InsertedWayDB, mode, estimated_records)
+
+    def remove_inserted_way_cache(self):
+        if os.path.exists(self.inserted_ways_fname):
+            os.unlink(self.inserted_ways_fname)
 
     def relations_cache(self, mode='r', estimated_records=None):
         return self._x_cache(self.relations_fname, RelationDB, mode, estimated_records)
