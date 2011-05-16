@@ -101,7 +101,7 @@ cdef class BDB:
         self._tune_db(estimated_records)
         tcbdbsetcmpfunc(self.db, tccmpint64, NULL)
         if not tcbdbopen(self.db, filename, _modes[mode]):
-            raise IOError
+            raise IOError(tcbdbecode(self.db))
         self._opened = 1
     
     def _tune_db(self, estimated_records):
@@ -125,12 +125,29 @@ cdef class BDB:
         if not ret: return None
         return self._obj(osmid, PyMarshal_ReadObjectFromString(<char *>ret, ret_size))
 
+    def get_raw(self, int64_t osmid):
+        """
+        Return object with given id.
+        Returns None if id is not stored.
+        """
+        cdef void *ret
+        cdef int ret_size
+        ret = tcbdbget3(self.db, <char *>&osmid, sizeof(int64_t), &ret_size)
+        if not ret: return None
+        return PyString_FromStringAndSize(<char *>ret, ret_size)
+
+    def put(self, int64_t osmid, data):
+        return self.put_marshaled(osmid, PyMarshal_WriteObjectToString(data, 2))
+
+    def put_marshaled(self, int64_t osmid, data):
+        return tcbdbput(self.db, <char *>&osmid, sizeof(int64_t), <char *>data, len(data))
+
     cdef object _obj(self, int64_t osmid, data):
         """
         Create an object from the id and unmarshaled data.
         Should be overridden by subclasses.
         """
-        pass
+        return data
 
     def __iter__(self):
         """
@@ -267,3 +284,145 @@ cdef class WayDB(RefTagDB):
 cdef class RelationDB(RefTagDB):
     cdef object _obj(self, int64_t osmid, data):
         return Relation(osmid, data[0], data[1])
+
+from imposm.cache.internal import DeltaCoords as _DeltaCoords
+from collections import deque
+import bisect
+
+cdef unzip_nodes(list nodes):
+    cdef int64_t last_lon, last_lat, lon, lat
+    cdef double lon_f, lat_f
+    cdef int64_t last_id, id
+    ids, lons, lats = [], [], []
+    last_id = last_lon = last_lat = 0
+    for id, lon_f, lat_f in nodes:
+        lon = _coord_to_uint32(lon_f)
+        lat = _coord_to_uint32(lat_f)
+        
+        ids.append(id - last_id)
+        lons.append(lon - last_lon)
+        lats.append(lat - last_lat)
+        last_id = id
+        last_lon = lon
+        last_lat = lat
+    
+    return ids, lons, lats
+
+cdef zip_nodes(tuple ids, tuple lons, tuple lats):
+    cdef uint32_t last_lon, last_lat
+    cdef int64_t last_id
+    nodes = []
+    last_id = last_lon = last_lat = 0
+
+    for i in range(len(ids)):
+        last_id += ids[i]
+        last_lon += lons[i]
+        last_lat += lats[i]
+    
+        nodes.append((
+            last_id,
+            _uint32_to_coord(last_lon),
+            _uint32_to_coord(last_lat)
+        ))
+    return nodes
+
+class DeltaNodes(object):
+    def __init__(self, data=None):
+        self.nodes = []
+        self.changed = False
+        if data:
+            self.deserialize(data)
+    
+    def changed(self):
+        return self.changed
+    
+    def get(self, int64_t osmid):
+        i = bisect.bisect(self.nodes, (osmid, ))
+        if i != len(self.nodes) and self.nodes[i][0] == osmid:
+            return self.nodes[i][1:]
+        return None
+    
+    def add(self, int64_t osmid, double lon, double lat):
+        # todo: overwrite
+        self.changed = True
+        if self.nodes and self.nodes[-1][0] < osmid:
+            self.nodes.append((osmid, lon, lat))
+        else:
+            bisect.insort(self.nodes, (osmid, lon, lat))
+    
+    def serialize(self):
+        ids, lons, lats = unzip_nodes(self.nodes)
+        nodes = _DeltaCoords()
+        nodes.ids = ids
+        nodes.lons = lons
+        nodes.lats = lats
+        return nodes.SerializeToString()
+    
+    def deserialize(self, data):
+        nodes = _DeltaCoords()
+        nodes.ParseFromString(data)
+        self.nodes = zip_nodes(
+            nodes.ids, nodes.lons, nodes.lats)
+
+class DeltaCoordsDB(object):
+    def __init__(self, filename, mode='w', estimated_records=0, delta_nodes_cache_size=100, delta_nodes_size=6):
+        self.db = BDB(filename, mode, estimated_records)
+        self.mode = mode
+        self.delta_nodes = {}
+        self.delta_node_ids = deque()
+        self.delta_nodes_cache_size = delta_nodes_cache_size
+        self.delta_nodes_size = delta_nodes_size
+    
+    def put(self, int64_t osmid, double lon, double lat):
+        if self.mode == 'r':
+            return None
+        delta_id = osmid >> self.delta_nodes_size
+        if delta_id not in self.delta_nodes:
+            self.fetch_delta_node(delta_id)
+        delta_node = self.delta_nodes[delta_id]
+        delta_node.add(osmid, lon, lat)
+        return True
+    
+    put_marshaled = put
+    
+    def get(self, osmid):
+        delta_id = osmid >> self.delta_nodes_size
+        if delta_id not in self.delta_nodes:
+            self.fetch_delta_node(delta_id)
+        return self.delta_nodes[delta_id].get(osmid)
+    
+    def get_coords(self, osmids):
+        coords = []
+        for osmid in osmids:
+            coord = self.get(osmid)
+            if coord is None:
+                return
+            coords.append(coord)
+        return coords
+    
+    def close(self):
+        for node_id, node in self.delta_nodes.iteritems():
+            self._put(node_id, node)
+        self.delta_nodes = {}
+        self.delta_node_ids = deque()
+        self.db.close()
+    
+    def _put(self, delta_id, delta_node):
+        data = delta_node.serialize()
+        self.db.put_marshaled(delta_id, data)
+    
+    def _get(self, delta_id):
+        return DeltaNodes(data=self.db.get_raw(delta_id))
+    
+    def fetch_delta_node(self, delta_id):
+        if len(self.delta_node_ids) >= self.delta_nodes_cache_size:
+            rm_id = self.delta_node_ids.popleft()
+            rm_node = self.delta_nodes.pop(rm_id)
+            if rm_node.changed:
+                self._put(rm_id, rm_node)
+        new_node = self._get(delta_id)
+        if new_node is None:
+            new_node = DeltaNodes()
+        self.delta_nodes[delta_id] = new_node
+        self.delta_node_ids.append(delta_id)
+

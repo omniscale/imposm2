@@ -19,6 +19,8 @@ if sys.version_info < (2, 6):
 class build_ext_with_cython(build_ext):
     def generate_c_file(self):
         try:
+            if os.path.getmtime('imposm/cache/tc.pyx') < os.path.getmtime('imposm/cache/tc.c'):
+                return
             print 'creating imposm/cache/tc.c'
             proc = subprocess.Popen(
                 ['cython', 'imposm/cache/tc.pyx'],
@@ -37,7 +39,29 @@ class build_ext_with_cython(build_ext):
             print out
             raise DistutilsPlatformError("Failed to generate "
                 "C files with cython.")
+    def generate_protoc(self):
+        try:
+            print 'creating protofiles'
+            proc = subprocess.Popen(
+                ['protoc', '--cpp_out', 'imposm/cache/', 'internal.proto'],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        except OSError, ex:
+            if ex.errno == errno.ENOENT:
+                print ("Could not find protoc command. Make sure protobuf is "
+                    "installed and your PATH environment is set.")
+                raise DistutilsPlatformError("Failed to generate protbuf "
+                    "CPP files with protoc.")
+            else:
+                raise
+        out = proc.communicate()[0]
+        result = proc.wait()
+        if result != 0:
+            print "Error during protbuf files generation with protoc:"
+            print out
+            raise DistutilsPlatformError("Failed to generate protbuf "
+                "CPP files with protoc.")
     def run(self):
+        self.generate_protoc()
         try:
             self.generate_c_file()
         except DistutilsPlatformError:
@@ -77,6 +101,7 @@ setup(
     ],
     ext_modules=[
         Extension("imposm.cache.tc", ["imposm/cache/tc.c"], libraries = ["tokyocabinet"]),
+        Extension("imposm.cache.internal", ["imposm/cache/internal.cc", "imposm/cache/internal.pb.cc"], libraries = ["protobuf"]),
     ],
     entry_points = {
         'console_scripts': [

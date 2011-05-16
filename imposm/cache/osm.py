@@ -14,7 +14,7 @@
 
 import os
 
-from . tc import CoordDB, NodeDB, WayDB, RelationDB
+from . tc import CoordDB, NodeDB, WayDB, RelationDB, DeltaCoordsDB
 
 class OSMCache(object):
     def __init__(self, path, suffix='imposm_', prefix='.cache'):
@@ -33,7 +33,7 @@ class OSMCache(object):
         self.caches = {}
 
     def coords_cache(self, mode='r', estimated_records=None):
-        return self._x_cache(self.coords_fname, CoordDB, mode, estimated_records)
+        return self._x_cache(self.coords_fname, DeltaCoordsDB, mode, estimated_records)
 
     def nodes_cache(self, mode='r', estimated_records=None):
         return self._x_cache(self.nodes_fname, NodeDB, mode, estimated_records)
