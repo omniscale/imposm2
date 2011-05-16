@@ -133,24 +133,31 @@ class TagMapper(object):
         return self._mapping_for_tags(self.polygons, tags)
 
     def _tag_filter(self, filter_tags):
-        filter_tags.add('name')
+        filter_tags['name'] = {'__any__': []}
         def filter(tags):
             for k in tags.keys():
                 if k not in filter_tags:
                     del tags[k]
+                else:
+                    if tags[k] not in filter_tags[k] and '__any__' not in filter_tags[k]:
+                        del tags[k]
             if 'name' in tags and len(tags) == 1:
                 del tags['name']
         return filter
 
     def tag_filter_for_nodes(self):
-        return self._tag_filter(self.nodes_tags)
+        tags = dict(self.points)
+        return self._tag_filter(tags)
 
     def tag_filter_for_ways(self):
-        return self._tag_filter(self.ways_tags)
+        tags = dict(self.lines)
+        tags.update(self.polygons)
+        return self._tag_filter(tags)
 
     def tag_filter_for_relations(self):
-        relation_tags = set(self.ways_tags)
-        relation_tags.add('type')  # for type=multipolygon
+        relation_tags = dict(self.lines)
+        relation_tags.update(self.polygons)
+        relation_tags['type'] = 'multipolygon'  # for type=multipolygon
         _rel_filter = self._tag_filter(relation_tags)
         def rel_filter(tags):
             if tags.get('type') != 'multipolygon':
@@ -162,21 +169,23 @@ class TagMapper(object):
     def _mapping_for_tags(self, tag_map, tags):
         result = []
         mapping_set = set()
-        def add_mappings(mappings, tag_name, tag_value):
-            new_mappings = []
-            for proc in mappings:
-                if proc not in mapping_set:
-                    mapping_set.add(proc)
-                    new_mappings.append(proc)
-            result.append(((tag_name, tag_value), tuple(new_mappings)))
 
-        for tag_name in tag_map:
-            if tag_name in tags:
+        for tag_name in tags:
+            if tag_name in tag_map:
                 tag_value = tags[tag_name]
+                mappings = []
                 if tag_value in tag_map[tag_name]:
-                    add_mappings(tag_map[tag_name][tag_value], tag_name, tag_value)
-                if ANY in tag_map[tag_name]:
-                    add_mappings(tag_map[tag_name][ANY], tag_name, tag_value)
+                    mappings.extend(tag_map[tag_name][tag_value])
+                elif ANY in tag_map[tag_name]:
+                    mappings.extend(tag_map[tag_name][ANY])
+
+                new_mappings = []
+                for proc in mappings:
+                    if proc not in mapping_set:
+                        mapping_set.add(proc)
+                        new_mappings.append(proc)
+                if new_mappings:
+                    result.append(((tag_name, tag_value), tuple(new_mappings)))
 
         return result
 
