@@ -267,6 +267,30 @@ cdef class NodeDB(BDB):
     cdef object _obj(self, int64_t osmid, data):
         return Node(osmid, data[0], data[1])
 
+cdef class InsertedWayDB(BDB):
+    def put(self, int64_t osmid):
+        return tcbdbput(self.db, <char *>&osmid, sizeof(int64_t), 'x', 1);
+
+    def __next__(self):
+        """
+        Return next item as object.
+        """
+        cdef int64_t osmid
+        cdef int size
+        cdef void *ret
+
+        if not self._cur: raise StopIteration
+
+        ret = tcbdbcurkey3(self._cur, &size)
+        osmid = (<int64_t *>ret)[0]
+
+        # advance cursor, set to NULL if at the end
+        if tcbdbcurnext(self._cur) == 0:
+            tcbdbcurdel(self._cur)
+            self._cur = NULL
+
+        return osmid
+
 cdef class RefTagDB(BDB):
     """
     Database for items with references and tags (i.e. ways/relations).

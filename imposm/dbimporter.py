@@ -98,6 +98,13 @@ class WayProcess(ImporterProcess):
 
     def doit(self):
         coords_cache = self.osm_cache.coords_cache(mode='r')
+        inserted_ways_cache = self.osm_cache.inserted_ways_cache(mode='r')
+        inserted_ways = iter(inserted_ways_cache)
+
+        try:
+            skip_id = inserted_ways.next()
+        except StopIteration:
+            skip_id = 2**64
 
         while True:
             ways = self.in_queue.get()
@@ -105,18 +112,24 @@ class WayProcess(ImporterProcess):
                 break
 
             for way in ways:
-                if way.tags.get('_inserted_'):
+                while skip_id < way.osm_id:
+                    try:
+                        skip_id = inserted_ways.next()
+                    except StopIteration:
+                        skip_id = 2**64
+                if skip_id == way.osm_id:
                     continue
+
                 mappings = self.mapper.for_ways(way.tags)
                 if not mappings:
                     continue
-                
+
                 coords = coords_cache.get_coords(way.refs)
-                
+
                 if not coords:
                     print 'missing coords for way %s' % (way.osm_id, )
                     continue
-                
+
                 self.insert(mappings, way.osm_id, coords, way.tags)
 
 

@@ -51,6 +51,7 @@ class ImposmWriter(object):
         self.cache.close_all()
 
     def relations(self):
+        self.cache.remove_inserted_way_cache()
         cache = self.cache.relations_cache()
         log = self.logger('relations', len(cache))
         inserted_way_queue = JoinableQueue()
@@ -66,12 +67,13 @@ class ImposmWriter(object):
         cache = self.cache.ways_cache()
         log = self.logger('ways', len(cache))
         self._write_elem(WayProcess, cache, log, self.pool_size)
+        self.cache.remove_inserted_way_cache()
 
     def nodes(self):
         cache = self.cache.nodes_cache()
         log = self.logger('nodes', len(cache))
         self._write_elem(NodeProcess, cache, log, self.pool_size)
-        
+
 
 class WayMarkerProcess(Process):
     def __init__(self, queue, cache, logger):
@@ -80,25 +82,14 @@ class WayMarkerProcess(Process):
         self.queue = queue
         self.cache = cache
         self.logger = logger
-    
+
     def run(self):
-        inserted_ways = array.array('I')
+        inserted_ways = self.cache.inserted_ways_cache('w')
         while True:
             osmid = self.queue.get()
             if osmid is None:
                 break
-            inserted_ways.append(osmid)
+            inserted_ways.put(osmid)
 
-        self.update_inserted_ways(inserted_ways)
+        inserted_ways.close()
 
-    def update_inserted_ways(self, inserted_ways):
-        log = self.logger('marking inserted ways', len(inserted_ways))
-        cache = self.cache.ways_cache(mode='w')
-        for i, osmid in enumerate(inserted_ways):
-            way = cache.get(osmid)
-            way.tags['_inserted_'] = True
-            cache.put(osmid, way.tags, way.refs)
-            if i % 100 == 0:
-                log.log(i)
-        cache.close()
-        log.stop()
