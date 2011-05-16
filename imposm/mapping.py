@@ -150,15 +150,22 @@ class TagMapper(object):
         return self._tag_filter(tags)
 
     def tag_filter_for_ways(self):
-        tags = dict(self.lines)
-        tags.update(self.polygons)
+        tags = dict()
+        for k, v in self.lines.iteritems():
+            tags.setdefault(k, {}).update(v)
+        
+        for k, v in self.polygons.iteritems():
+            tags.setdefault(k, {}).update(v)
         return self._tag_filter(tags)
 
     def tag_filter_for_relations(self):
-        relation_tags = dict(self.lines)
-        relation_tags.update(self.polygons)
-        relation_tags['type'] = 'multipolygon'  # for type=multipolygon
-        _rel_filter = self._tag_filter(relation_tags)
+        tags = dict()
+        for k, v in self.lines.iteritems():
+            tags.setdefault(k, {}).update(v)
+        for k, v in self.polygons.iteritems():
+            tags.setdefault(k, {}).update(v)
+        tags['type'] = 'multipolygon'  # for type=multipolygon
+        _rel_filter = self._tag_filter(tags)
         def rel_filter(tags):
             if tags.get('type') != 'multipolygon':
                 tags.clear()
@@ -186,7 +193,7 @@ class TagMapper(object):
                         new_mappings.append(proc)
                 if new_mappings:
                     result.append(((tag_name, tag_value), tuple(new_mappings)))
-
+        
         return result
 
 
