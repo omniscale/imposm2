@@ -14,8 +14,7 @@
 
 import os
 import tempfile
-from imposm.cache.tc import NodeDB, CoordDB
-from imposm.cache.nodes import DeltaCoordsDB
+from imposm.cache.tc import NodeDB, DeltaCoordsDB
 
 from nose.tools import eq_, assert_almost_equal
 
@@ -73,26 +72,26 @@ class TestCoordDB(object):
         assert_almost_equal(pos[1], 179.123456789, 7)
     
     def test_read_only(self):
-        assert self.db.put(1000, 123, 456)
+        assert self.db.put(1000, 123, 0)
+        assert self.db.put(1001, -180.0, -90)
+        assert self.db.put(1010, 180, 90)
+        
         self.db.close()
         self.db = DeltaCoordsDB(self.fname, 'r')
         
         pos = self.db.get(1000)
-        assert_almost_equal(pos[0], 123.0, 7)
-        assert_almost_equal(pos[1], 456.0, 7)
-        
-        assert not self.db.put(1001, 123, 456)
-        assert not self.db.get(1001)
+        assert_almost_equal(pos[0], 123.0, 6)
+        assert_almost_equal(pos[1], 0.0, 6)
 
-    def _test_iter(self):
-        assert self.db.put(1000, 123, 456)
+        pos = self.db.get(1001)
+        assert_almost_equal(pos[0], -180.0, 6)
+        assert_almost_equal(pos[1], -90.0, 6)
         
-        coords = list(self.db)
-        eq_(len(coords), 1)
+        pos = self.db.get(1010)
+        assert_almost_equal(pos[0], 180.0, 6)
+        assert_almost_equal(pos[1], 90.0, 6)
         
-        osm_id, pos = coords[0]
+
         
-        eq_(osm_id, 1000)
-        assert_almost_equal(pos[0], 123.0, 7)
-        assert_almost_equal(pos[1], 456.0, 7)
-        
+        assert not self.db.put(2001, 123, 456)
+        assert not self.db.get(2001)
