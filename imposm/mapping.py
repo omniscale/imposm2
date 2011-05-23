@@ -164,10 +164,15 @@ class TagMapper(object):
             tags.setdefault(k, {}).update(v)
         for k, v in self.polygons.iteritems():
             tags.setdefault(k, {}).update(v)
-        tags['type'] = 'multipolygon'  # for type=multipolygon
+        tags['type'] = set(['multipolygon', 'boundary'])  # for type=multipolygon
         _rel_filter = self._tag_filter(tags)
         def rel_filter(tags):
-            if tags.get('type') != 'multipolygon':
+            if tags.get('type') == 'multipolygon':
+                pass
+            elif tags.get('type') == 'boundary' and 'boundary' in tags:
+                # a lot of the boundary relations are not multipolygon
+                pass
+            else:
                 tags.clear()
                 return
             _rel_filter(tags)
