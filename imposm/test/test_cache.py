@@ -29,14 +29,20 @@ class TestNodeDB(object):
     
     def test_insert(self):
         assert self.db.put(1000, {'foo': 2}, (123, 456))
+        assert self.db.put(2**40, {'bar': 2}, (123, 456))
         
         nd = self.db.get(1000)
         eq_(nd.osm_id, 1000)
         eq_(nd.tags, {'foo': 2})
         eq_(nd.coord, (123, 456))
+
+        nd = self.db.get(2**40)
+        eq_(nd.osm_id, 2**40)
+
     
     def test_read_only(self):
         assert self.db.put(1000, {'foo': 2}, (123, 456))
+        assert self.db.put(2**40, {'bar': 2}, (123, 456))
         self.db.close()
         self.db = NodeDB(self.fname, 'r')
         
@@ -44,6 +50,9 @@ class TestNodeDB(object):
         eq_(nd.osm_id, 1000)
         eq_(nd.tags, {'foo': 2})
         eq_(nd.coord, (123, 456))
+
+        nd = self.db.get(2**40)
+        eq_(nd.osm_id, 2**40)
         
         assert not self.db.put(1001, {'foo': 2}, (123, 456))
         assert not self.db.get(1001)
@@ -66,15 +75,22 @@ class TestCoordDB(object):
     
     def test_insert(self):
         assert self.db.put(1000, 123, 179.123456789)
+        assert self.db.put(2**40, 123, 179.123456789)
+        assert self.db.put(2**40+1, 123, 179.123456789)
         
         pos = self.db.get(1000)
         assert_almost_equal(pos[0], 123.0, 7)
         assert_almost_equal(pos[1], 179.123456789, 7)
+
+        assert self.db.get(2**40)
+        assert self.db.get(2**40+1)
     
     def test_read_only(self):
         assert self.db.put(1000, 123, 0)
         assert self.db.put(1001, -180.0, -90)
         assert self.db.put(1010, 180, 90)
+        assert self.db.put(2**40, 123, 179.123456789)
+        assert self.db.put(2**40+1, 123, 179.123456789)
         
         self.db.close()
         self.db = DeltaCoordsDB(self.fname, 'r')
@@ -91,7 +107,8 @@ class TestCoordDB(object):
         assert_almost_equal(pos[0], 180.0, 6)
         assert_almost_equal(pos[1], 90.0, 6)
         
-
+        assert self.db.get(2**40)
+        assert self.db.get(2**40+1)
         
         assert not self.db.put(2001, 123, 456)
         assert not self.db.get(2001)
