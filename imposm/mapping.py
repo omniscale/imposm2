@@ -171,6 +171,13 @@ class TagMapper(object):
                 tags.clear()
                 return
             _rel_filter(tags)
+            tags_count = len(tags)
+            if 'name' in tags:
+                tags_count -= 1
+            if 'type' in tags:
+                tags_count -= 1
+            if tags_count == 0:
+                tags.clear()
         return rel_filter
 
     def _mapping_for_tags(self, tag_map, tags):
