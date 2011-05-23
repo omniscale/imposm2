@@ -69,7 +69,8 @@ class TestTagMapper(object):
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm'}), {})
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm', 'type': 'multipolygon'}),
             {'name': 'foo', 'landuse': 'farm', 'type': 'multipolygon'})
-        eq_(tagfilter({'name': 'foo', 'landuse': 'unknown', 'type': 'multipolygon'}), {})
+        eq_(tagfilter({'name': 'foo', 'landuse': 'unknown', 'type': 'multipolygon'}),
+            {'name': 'foo', 'type': 'multipolygon'})
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'multipolygon'}),
             {'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'multipolygon'})
         
