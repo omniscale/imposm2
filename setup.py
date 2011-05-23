@@ -19,7 +19,9 @@ if sys.version_info < (2, 6):
 class build_ext_with_cython(build_ext):
     def generate_c_file(self):
         try:
-            if os.path.getmtime('imposm/cache/tc.pyx') < os.path.getmtime('imposm/cache/tc.c'):
+            if (os.path.exists('imposm/cache/tc.c') and
+                os.path.getmtime('imposm/cache/tc.pyx') < os.path.getmtime('imposm/cache/tc.c')):
+                print 'imposm/cache/tc.c up to date'
                 return
             print 'creating imposm/cache/tc.c'
             proc = subprocess.Popen(
@@ -41,6 +43,10 @@ class build_ext_with_cython(build_ext):
                 "C files with cython.")
     def generate_protoc(self):
         try:
+            if (os.path.exists('imposm/cache/internal.pb.cc') and 
+                os.path.getmtime('internal.proto') < os.path.getmtime('imposm/cache/internal.pb.cc')):
+                print 'imposm/cache/internal.pb.cc up to date'
+                return
             print 'creating protofiles'
             proc = subprocess.Popen(
                 ['protoc', '--cpp_out', 'imposm/cache/', 'internal.proto'],
