@@ -13,42 +13,137 @@
 # limitations under the License.
 
 from imposm.base import Relation, Way
-from imposm.multipolygon import RelationBuilder, Ring, merge_rings
+from imposm.multipolygon import UnionRelationBuilder, ContainsRelationBuilder, Ring, merge_rings
 
 from nose.tools import eq_
 
-def test_simple_polygon_w_hole():
-    w1 = Way(1, {}, [1, 2, 3, 4, 1])
-    w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
-    w2 = Way(2, {}, [5, 6, 7, 8, 5])
-    w2.coords = [(2, 2), (8, 2), (8, 8), (2, 8), (2, 2)]
-    
-    r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
-    builder = RelationBuilder(r, None, None)
-    rings = builder.build_rings([w1, w2])
-    eq_(len(rings), 2)
-    eq_(rings[0].geom.area, 100)
-    eq_(rings[1].geom.area, 36)
-    
-    builder.build_relation_geometry(rings)
-    
-    eq_(r.geom.area, 100-36)
+class RelationBuilderTestBase(object):
 
-def test_simple_polygon_from_two_lines():
-    w1 = Way(1, {}, [1, 2, 3])
-    w1.coords = [(0, 0), (10, 0), (10, 10)]
-    w2 = Way(2, {}, [3, 4, 1])
-    w2.coords = [(10, 10), (0, 10), (0, 0)]
+    def test_simple_polygon_w_hole(self):
+        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        w2 = Way(2, {}, [5, 6, 7, 8, 5])
+        w2.coords = [(2, 2), (8, 2), (8, 8), (2, 8), (2, 2)]
     
-    r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
-    builder = RelationBuilder(r, None, None)
-    rings = builder.build_rings([w1, w2])
-    eq_(len(rings), 1)
-    eq_(rings[0].geom.area, 100)
+        r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2])
+        eq_(len(rings), 2)
+        eq_(rings[0].geom.area, 100)
+        eq_(rings[1].geom.area, 36)
     
-    builder.build_relation_geometry(rings)
+        builder.build_relation_geometry(rings)
     
-    eq_(r.geom.area, 100)
+        eq_(r.geom.area, 100-36)
+
+    def test_polygon_w_multiple_holes(self):
+        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        w2 = Way(2, {}, [1, 2, 3, 4, 1])
+        w2.coords = [(1, 1), (2, 1), (2, 2), (1, 2), (1, 1)]
+        w3 = Way(3, {}, [1, 2, 3, 4, 1])
+        w3.coords = [(3, 3), (4, 3), (4, 4), (3, 4), (3, 3)]
+    
+        r = Relation(1, {}, [
+            (1, 'way', 'outer'), (2, 'way', 'inner'), (3, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2, w3])
+        eq_(len(rings), 3)
+        eq_(rings[0].geom.area, 100)
+        eq_(rings[1].geom.area, 1)
+        eq_(rings[2].geom.area, 1)
+    
+        builder.build_relation_geometry(rings)
+    
+        eq_(rings[0].inserted, True)
+        eq_(rings[1].inserted, False)
+        eq_(rings[2].inserted, False)
+    
+        eq_(r.geom.area, 100-1-1)
+
+
+    def test_polygon_w_nested_holes(self):
+        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        w2 = Way(2, {}, [1, 2, 3, 4, 1])
+        w2.coords = [(1, 1), (9, 1), (9, 9), (1, 9), (1, 1)]
+        w3 = Way(3, {}, [5, 6, 7, 8, 5])
+        w3.coords = [(2, 2), (8, 2), (8, 8), (2, 8), (2, 2)]
+        w4 = Way(4, {}, [9, 10, 11, 12, 9])
+        w4.coords = [(3, 3), (7, 3), (7, 7), (3, 7), (3, 3)]
+        w5 = Way(5, {}, [9, 10, 11, 12, 9])
+        w5.coords = [(4, 4), (6, 4), (6, 6), (4, 6), (4, 4)]
+    
+        r = Relation(1, {}, [
+            (1, 'way', 'outer'), (2, 'way', 'inner'), (3, 'way', 'inner'),
+            (4, 'way', 'inner'), (5, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2, w3, w4, w5])
+        eq_(len(rings), 5)
+        eq_(rings[0].geom.area, 100)
+        eq_(rings[1].geom.area, 64)
+        eq_(rings[2].geom.area, 36)
+        eq_(rings[3].geom.area, 16)
+        eq_(rings[4].geom.area, 4)
+    
+        builder.build_relation_geometry(rings)
+
+        eq_(rings[0].inserted, True)
+        eq_(rings[1].inserted, False)
+        eq_(rings[2].inserted, True)
+        eq_(rings[3].inserted, False)
+        eq_(rings[4].inserted, True)
+    
+        eq_(r.geom.area, 100-64+36-16+4)
+
+    def test_polygon_w_touching_holes(self):
+        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        w2 = Way(2, {}, [1, 2, 3, 4, 1])
+        w2.coords = [(1, 1), (5, 1), (5, 9), (1, 9), (1, 1)]
+        w3 = Way(3, {}, [1, 2, 3, 4, 1])
+        w3.coords = [(5, 1), (9, 1), (9, 9), (5, 9), (5, 1)]
+    
+        r = Relation(1, {}, [
+            (1, 'way', 'outer'), (2, 'way', 'inner'), (3, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2, w3])
+        eq_(len(rings), 3)
+        eq_(rings[0].geom.area, 100)
+        eq_(rings[1].geom.area, 32)
+        eq_(rings[2].geom.area, 32)
+    
+        builder.build_relation_geometry(rings)
+
+        eq_(rings[0].inserted, True)
+        eq_(rings[1].inserted, False)
+        eq_(rings[2].inserted, False)
+    
+        eq_(r.geom.area, 100-64)
+
+    def test_simple_polygon_from_two_lines(self):
+        w1 = Way(1, {}, [1, 2, 3])
+        w1.coords = [(0, 0), (10, 0), (10, 10)]
+        w2 = Way(2, {}, [3, 4, 1])
+        w2.coords = [(10, 10), (0, 10), (0, 0)]
+    
+        r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2])
+        eq_(len(rings), 1)
+        eq_(rings[0].geom.area, 100)
+    
+        builder.build_relation_geometry(rings)
+    
+        eq_(r.geom.area, 100)
+
+
+class TestUnionRelationBuilder(RelationBuilderTestBase):
+    relation_builder = UnionRelationBuilder
+
+
+class TestContainsRelationBuilder(RelationBuilderTestBase):
+    relation_builder = ContainsRelationBuilder
 
 
 def test_merge_rings():

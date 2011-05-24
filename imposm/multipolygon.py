@@ -38,7 +38,8 @@ log = logging.getLogger(__name__)
 IMPOSM_MULTIPOLYGON_REPORT = float(os.environ.get('IMPOSM_MULTIPOLYGON_REPORT', 60))
 IMPOSM_MULTIPOLYGON_MAX_RING = int(os.environ.get('IMPOSM_MULTIPOLYGON_MAX_RING', 1000))
 
-class RelationBuilder(object):
+class RelationBuilderBase(object):
+    validate_rings = True
     def __init__(self, relation, ways_cache, coords_cache):
         self.relation = relation
         self.polygon_builder = PolygonBuilder()
@@ -70,7 +71,7 @@ class RelationBuilder(object):
         
         for ring in (Ring(w) for w in ways):
             if ring.is_closed():
-                ring.geom = self.polygon_builder.build_checked_geom(ring, validate=True)
+                ring.geom = self.polygon_builder.build_checked_geom(ring, validate=self.validate_rings)
                 rings.append(ring)
             else:
                 incomplete_rings.append(ring)
@@ -87,7 +88,7 @@ class RelationBuilder(object):
                 raise InvalidGeometryError('linestrings from relation %s do not form a ring' %
                         self.relation.osm_id)
             
-            ring.geom = self.polygon_builder.build_checked_geom(ring, validate=True)
+            ring.geom = self.polygon_builder.build_checked_geom(ring, validate=self.validate_rings)
         return rings
     
     def fetch_way_coords(self, way):
@@ -106,40 +107,8 @@ class RelationBuilder(object):
         """
         Build relation geometry from rings.
         """
-        rings.sort(key=lambda x: x.geom.area, reverse=True)
+        raise NotImplementedError()
         
-        # add/subtract all rings from largest
-        polygon = rings.pop(0)
-        polygon.inserted = True
-        rel_tags = relation_tags(self.relation.tags, polygon.tags)
-        
-        geom = polygon.geom
-        for r in rings:
-            if geom.contains(r.geom):
-                # inside -> hole -> subtract
-                geom = geom.difference(r.geom)
-                if tags_same_or_empty(rel_tags, r.tags):
-                    r.inserted = True
-                else:
-                    r.inserted = False
-            else:
-                # outside or overlap -> merge(union) to multipolygon or to polygon
-                try:
-                    geom = geom.union(r.geom)
-                except shapely.geos.TopologicalError:
-                    raise InvalidGeometryError('multipolygon relation (%s) result is invalid'
-                                               ' (topological error)' % self.relation.osm_id)
-                r.inserted = True
-        if not geom.is_valid:
-            raise InvalidGeometryError('multipolygon relation (%s) result is invalid' %
-                                       self.relation.osm_id)
-        
-        self.relation.geom = geom
-        self.relation.tags = rel_tags
-        all_ways = polygon.ways
-        for r in rings:
-            all_ways.extend(r.ways)
-        self.relation.ways = all_ways
     
     def mark_inserted_ways(self, inserted_ways_queue):
         for w in self.relation.ways:
@@ -177,6 +146,127 @@ class RelationBuilder(object):
             log.warn('error while building multipolygon:')
             log.exception(ex)
             raise IncompletePolygonError(ex)
+
+
+class UnionRelationBuilder(RelationBuilderBase):
+    def build_relation_geometry(self, rings):
+        """
+        Build relation geometry from rings.
+        """
+        rings.sort(key=lambda x: x.geom.area, reverse=True)
+        
+        # add/subtract all rings from largest
+        polygon = rings[0]
+        polygon.inserted = True
+        rel_tags = relation_tags(self.relation.tags, polygon.tags)
+        
+        geom = polygon.geom
+        for r in rings[1:]:
+            if geom.contains(r.geom):
+                # inside -> hole -> subtract
+                geom = geom.difference(r.geom)
+                if tags_differ(rel_tags, r.tags):
+                    r.inserted = True
+                else:
+                    r.inserted = False
+            else:
+                # outside or overlap -> merge(union) to multipolygon or to polygon
+                try:
+                    geom = geom.union(r.geom)
+                except shapely.geos.TopologicalError:
+                    raise InvalidGeometryError('multipolygon relation (%s) result is invalid'
+                                               ' (topological error)' % self.relation.osm_id)
+                r.inserted = True
+        if not geom.is_valid:
+            raise InvalidGeometryError('multipolygon relation (%s) result is invalid' %
+                                       self.relation.osm_id)
+        
+        self.relation.geom = geom
+        self.relation.tags = rel_tags
+        all_ways = polygon.ways
+        for r in rings:
+            all_ways.extend(r.ways)
+        self.relation.ways = all_ways
+
+class ContainsRelationBuilder(RelationBuilderBase):
+    validate_rings = False
+    
+    def _ring_is_hole(self, rings, idx):
+        """
+        Returns True if rings[idx] is a hole, False if it is a
+        shell (also if hole in a hole, etc)
+        """
+        contained_counter = 0
+        while True:
+            idx = rings[idx].contained_by
+            if idx is None:
+                break
+            contained_counter += 1
+        
+        return contained_counter % 2 == 1
+    
+    def build_relation_geometry(self, rings):
+        """
+        Build relation geometry from rings.
+        """
+        rings.sort(key=lambda x: x.geom.area, reverse=True)
+        total_rings = len(rings)
+
+        shells = set([rings[0]])
+
+        for i in xrange(total_rings):
+            test_geom = shapely.prepared.prep(rings[i].geom)
+            for j in xrange(i+1, total_rings):
+                if test_geom.contains(rings[j].geom):
+                    # j in inside of i
+                    if rings[j].contained_by is not None:
+                        # j is inside a larger ring, remove that relationship
+                        # e.g. j is hole inside a hole (i)
+                        rings[rings[j].contained_by].holes.discard(rings[j])
+                        shells.discard(rings[j])
+                    
+                    # remember parent
+                    rings[j].contained_by = i
+                    
+                    # add ring as hole or shell
+                    if self._ring_is_hole(rings, j):
+                        rings[i].holes.add(rings[j])
+                    else:
+                        shells.add(rings[j])
+                elif rings[j].contained_by is None:
+                    # add as shell if it is not a hole
+                    shells.add(rings[j])
+        
+        # build polygons from rings
+        polygons = []
+        for shell in shells:
+            shell.inserted = True
+            exterior = shell.geom.exterior
+            interiors = []
+            for hole in shell.holes:
+                interiors.append(hole.geom.exterior)
+            
+            polygons.append(shapely.geometry.Polygon(exterior, interiors))
+            
+        if len(polygons) == 1:
+            geom = polygons[0]
+        else:
+            geom = shapely.geometry.MultiPolygon(polygons)
+        
+        rel_tags = relation_tags(self.relation.tags, rings[0].tags)
+        
+        geom = imposm.geom.validate_and_simplify(geom)
+        if not geom.is_valid:
+            raise InvalidGeometryError('multipolygon relation (%s) result is invalid' %
+                                       self.relation.osm_id)
+        
+        self.relation.geom = geom
+        self.relation.tags = rel_tags
+        all_ways = []
+        for r in rings:
+            all_ways.extend(r.ways)
+        self.relation.ways = all_ways
+    
 
 def relation_tags(rel_tags, way_tags):
     result = dict(rel_tags)
@@ -269,7 +359,9 @@ class Ring(object):
         self.refs = way.refs
         self.coords = way.coords
         self.tags = dict(way.tags)
-        self._inserted = way
+        self._inserted = way.inserted
+        self.contained_by = None
+        self.holes = set()
     
     def __repr__(self):
         return 'Ring(%r, %r, %r)' % (self.osm_id, self.tags, self.ways)
