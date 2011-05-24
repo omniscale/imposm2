@@ -333,11 +333,13 @@ class PostGISGeneralizedTable(object):
 
     def _stmt(self):
         fields = ', '.join([n for n, t in self.mapping.fields])
+        if fields:
+            fields += ','
         if self.mapping.where:
             where = ' WHERE ' + self.mapping.where
         else:
             where = ''
-        return """CREATE TABLE "%s" AS (SELECT osm_id, name, type, %s,
+        return """CREATE TABLE "%s" AS (SELECT osm_id, name, type, %s
             ST_Simplify(geometry, %f) as geometry from "%s"%s)""" % (
             self.table_name, fields, self.mapping.tolerance, self.db.to_tablename(self.mapping.origin.name),
             where)
