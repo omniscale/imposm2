@@ -121,6 +121,6 @@ Imposm uses the the web mercator projection (``EPSG:900913``) for the imports. Y
 Multipolygon Relation Building
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Imposm ignores multipolygon relations that consist of more than 1000 rings. You can change that number with the ``IMPOSM_MULTIPOLYGON_MAX_RING`` environment variable.
+Imposm ignores multipolygon relations that consist of more than 1000 rings. You can change that number with the ``IMPOSM_MULTIPOLYGON_MAX_RING`` environment variable. Set to ``0`` process all sizes.
 
 It will log complex multipolygon relations that take more than 60 seconds to build. You can change this time with the ``IMPOSM_MULTIPOLYGON_REPORT`` environment variable for debugging.

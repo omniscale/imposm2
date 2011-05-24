@@ -126,7 +126,7 @@ class RelationBuilderBase(object):
             rings = self.build_rings(ways)
             time_rings = time.time() - time_start
 
-            if len(rings) > IMPOSM_MULTIPOLYGON_MAX_RING:
+            if IMPOSM_MULTIPOLYGON_MAX_RING and len(rings) > IMPOSM_MULTIPOLYGON_MAX_RING:
                 log.warn('skipping relation %d with %d ways (%.1fms) and %d rings (%.1fms): too many rings',
                     self.relation.osm_id, len(ways), time_ways*1000, len(rings), time_rings*1000)
                 raise IncompletePolygonError('skipping too large multipolygon')
