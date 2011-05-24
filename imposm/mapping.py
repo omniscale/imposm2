@@ -242,12 +242,13 @@ class Polygons(Mapping):
 
 
 class GeneralizedTable(object):
-    def __init__(self, name, tolerance, origin):
+    def __init__(self, name, tolerance, origin, where=None):
         self.name = name
         self.tolerance = tolerance
         self.origin = origin
         self.classname = origin.name
         self.fields = self.origin.fields
+        self.where = where
 
 class UnionView(object):
     def __init__(self, name, mappings, fields):
