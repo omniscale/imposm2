@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import shapely.geos
 from shapely.geometry.base import BaseGeometry
 from shapely import geometry
 from shapely import wkt
@@ -25,6 +26,26 @@ class InvalidGeometryError(Exception):
 class IncompletePolygonError(Exception):
     pass
 
+
+TOLERANCE_DEEGREES = 1e-8
+TOLERANCE_METERS = 1e-3
+
+# older versions had unhandled floating point execptions in .buffer(0)
+SHAPELY_SUPPORTS_BUFFER = shapely.geos.geos_capi_version >= (1, 6, 0)
+
+def validate_and_simplify(geom, meter_units=False):
+    if SHAPELY_SUPPORTS_BUFFER:
+        # buffer(0) is nearly fast as is_valid 
+        return geom.buffer(0)
+    
+    orig_geom = geom
+    if not geom.is_valid:
+        tolerance = TOLERANCE_METERS if meter_units else TOLERANCE_DEEGREES
+        geom = geom.simplify(tolerance, False)
+        if not geom.is_valid:
+            raise InvalidGeometryError('geometry is invalid, could not simplify: %s' %
+                                       orig_geom)
+    return geom
 
 class GeomBuilder(object):
     def build(self, osm_elem):
@@ -105,7 +126,7 @@ class PolygonBuilder(GeomBuilder):
         if not validate:
             return geom
         try:
-            return geom.buffer(0)
+            return validate_and_simplify(geom)
         except InvalidGeometryError:
             raise InvalidGeometryError('invalid geometry for %s: %s, %s' %
                                        (osm_elem.osm_id, geom, osm_elem.coords))
