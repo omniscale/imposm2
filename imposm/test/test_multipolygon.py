@@ -15,9 +15,100 @@
 from imposm.base import Relation, Way
 from imposm.multipolygon import UnionRelationBuilder, ContainsRelationBuilder, Ring, merge_rings
 
-from nose.tools import eq_
+from nose.tools import eq_, assert_almost_equal
 
 class RelationBuilderTestBase(object):
+
+    def test_broken_polygon_self_intersect(self):
+        #  2##3    6##7
+        #  #  #    ####
+        #  1##4____5##8
+        w1 = Way(1, {}, [1, 2, 3, 4, 5, 6, 7, 8, 1])
+        w1.coords = [(0, 0), (0, 10), (10, 10), (10, 0), (20, 0), (20, 10), (30, 10), (30, 0), (0, 0)]
+        w2 = Way(2, {}, [15, 16, 17, 18, 15])
+        w2.coords = [(2, 2), (8, 2), (8, 8), (2, 8), (2, 2)]
+        yield self.check_broken_polygon, w1, w2
+
+        #  2##3    6##7
+        #  #  #    ####
+        #  1##4____5##8
+        w1 = Way(1, {}, [4, 1, 2, 3, 4, 5, 6, 7, 8, 4])
+        w1.coords = [(10, 0), (0, 0), (0, 10), (10, 10), (10, 0), (20, 0), (20, 10), (30, 10), (30, 0), (10, 0)]
+        yield self.check_broken_polygon, w1, w2
+        
+    def check_broken_polygon(self, w1, w2):
+        r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2])
+        eq_(len(rings), 2)
+        eq_(rings[0].geom.area, 200)
+        eq_(rings[1].geom.area, 36)
+    
+        builder.build_relation_geometry(rings)
+    
+        eq_(r.geom.area, 200-36)
+
+    def test_broken_polygon_self_intersect_triangle(self):
+        #  2###
+        #  #    ###4
+        #  #    ###3
+        #  1###
+        # triangle with four points, minor overlapping
+        
+        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1.coords = [(0, 0), (0, 100), (100, 50 - 0.00001), (100, 50 + 0.00001), (0, 0)]
+        w2 = Way(2, {}, [15, 16, 17, 18, 15])
+        w2.coords = [(10, 45), (10, 55), (20, 55), (20, 45), (10, 45)]
+
+        r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2])
+        eq_(len(rings), 2)
+        assert_almost_equal(rings[0].geom.area, 100 * 100 / 2, 2)
+        eq_(rings[1].geom.area, 100)
+    
+        builder.build_relation_geometry(rings)
+        assert_almost_equal(r.geom.area, 100 * 100 / 2 - 100, 2)
+
+        # larger overlapp
+        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1.coords = [(0, 0), (0, 100), (100, 50 - 1), (100, 50 + 1), (0, 0)]
+        w2 = Way(2, {}, [15, 16, 17, 18, 15])
+        w2.coords = [(10, 45), (10, 55), (20, 55), (20, 45), (10, 45)]
+
+        r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2])
+        eq_(len(rings), 2)
+        assert_almost_equal(rings[0].geom.area, 100 * 100 / 2, -3)
+        eq_(rings[1].geom.area, 100)
+    
+        builder.build_relation_geometry(rings)
+        assert_almost_equal(r.geom.area, 100 * 100 / 2 - 100, -3)
+
+        # #  2###    ###4
+        # #  #    ###   #
+        # #  #    ###   #
+        # #  1###    ###3
+        # # hourglass
+        # w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        # w1.coords = [(0, 0), (0, 100), (100, 0), (100, 100), (0, 0)]
+        # w2 = Way(2, {}, [15, 16, 17, 18, 15])
+        # w2.coords = [(10, 45), (10, 55), (20, 55), (20, 45), (10, 45)]
+        # w3 = Way(3, {}, [25, 26, 27, 28, 25])
+        # w3.coords = [(80, 45), (80, 55), (90, 55), (90, 45), (80, 45)]
+        # 
+        # r = Relation(1, {}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        # builder = self.relation_builder(r, None, None)
+        # rings = builder.build_rings([w1, w2, w3])
+        # eq_(len(rings), 3)
+        # print rings[0].geom.wkt, rings[0].geom.simplify(0.000001, False).wkt
+        # eq_(rings[0].geom.area, 100 * 100 / 2)
+        # eq_(rings[1].geom.area, 100)
+        # eq_(rings[2].geom.area, 100)
+        #     
+        # builder.build_relation_geometry(rings)
+        # assert_almost_equal(r.geom.area, 100 * 100 / 2 - 100, -3)
 
     def test_simple_polygon_w_hole(self):
         w1 = Way(1, {}, [1, 2, 3, 4, 1])
