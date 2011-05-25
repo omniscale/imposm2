@@ -62,7 +62,7 @@ def setup_logging():
 
 __version__ = imposm.version.__version__
 
-def main():
+def main(argv=None):
     setproctitle('imposm: main')
     setup_logging()
 
@@ -121,7 +121,7 @@ def main():
     parser.add_option('-n', '--dry-run', dest='dry_run', default=False,
         action='store_true')
 
-    (options, args) = parser.parse_args()
+    (options, args) = parser.parse_args(argv)
 
     if options.help:
         parser.print_help()
