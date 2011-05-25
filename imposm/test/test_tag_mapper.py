@@ -35,6 +35,8 @@ class TestTagMapper(object):
         eq_(tagfilter({'name': 'foo', 'unknown': 'baz'}), {})
         eq_(tagfilter({'name': 'foo', 'place': 'unknown'}), {})
         eq_(tagfilter({'name': 'foo', 'place': 'village'}), {'name': 'foo', 'place': 'village'})
+        eq_(tagfilter({'name': 'foo', 'place': 'village', 'population': '1000'}),
+            {'name': 'foo', 'place': 'village', 'population': '1000'})
         eq_(tagfilter({'name': 'foo', 'place': 'village', 'highway': 'unknown'}),
             {'name': 'foo', 'place': 'village'})
         eq_(tagfilter({'name': 'foo', 'place': 'village', 'highway': 'bus_stop'}),
@@ -48,6 +50,8 @@ class TestTagMapper(object):
         eq_(tagfilter({'name': 'foo', 'unknown': 'baz'}), {})
         eq_(tagfilter({'name': 'foo', 'highway': 'unknown'}), {})
         eq_(tagfilter({'name': 'foo', 'highway': 'track'}), {'name': 'foo', 'highway': 'track'})
+        eq_(tagfilter({'name': 'foo', 'highway': 'track', 'oneway': 'yes', 'tunnel': '1'}),
+            {'name': 'foo', 'highway': 'track', 'oneway': 'yes', 'tunnel': '1'})
         eq_(tagfilter({'name': 'foo', 'place': 'village', 'highway': 'track'}),
             {'name': 'foo', 'highway': 'track'})
         eq_(tagfilter({'name': 'foo', 'railway': 'tram', 'highway': 'secondary'}),

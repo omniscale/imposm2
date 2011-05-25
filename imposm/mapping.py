@@ -96,74 +96,79 @@ class TagMapper(object):
         self._init_map()
 
     def _init_map(self):
-        self.points = {}
-        self.lines = {}
-        self.polygons = {}
-        self.nodes_tags = set()
-        self.ways_tags = set()
+        self.point_mappings = {}
+        self.line_mappings = {}
+        self.polygon_mappings = {}
+        self.point_tags = {}
+        self.line_tags = {}
+        self.polygon_tags = {}
 
         for mapping in self.mappings:
             if mapping.table is PointTable:
-                tags = self.nodes_tags
-                add_to = self.points
+                tags = self.point_tags
+                add_to = self.point_mappings
             elif mapping.table is LineStringTable:
-                tags = self.ways_tags
-                add_to = self.lines
+                tags = self.line_tags
+                add_to = self.line_mappings
             elif mapping.table is PolygonTable:
-                tags = self.ways_tags
-                add_to = self.polygons
-
-            tags.update(mapping.extra_field_names())
+                tags = self.polygon_tags
+                add_to = self.polygon_mappings
+            
+            for extra in mapping.extra_field_names():
+                tags.setdefault(extra, set()).add('__any__')
 
             for tag, types in mapping.mapping.iteritems():
                 add_to.setdefault(tag, {})
-                tags.add(tag)
                 for type in types:
-                    add_to[tag].setdefault(type, [])
-                    add_to[tag][type].append(mapping)
+                    tags.setdefault(tag, set()).add(type)
+                    add_to[tag].setdefault(type, []).append(mapping)
 
     def for_nodes(self, tags):
-        return self._mapping_for_tags(self.points, tags)
+        return self._mapping_for_tags(self.point_mappings, tags)
 
     def for_ways(self, tags):
-        return (self._mapping_for_tags(self.lines, tags) + 
-                self._mapping_for_tags(self.polygons, tags))
+        return (self._mapping_for_tags(self.line_mappings, tags) + 
+                self._mapping_for_tags(self.polygon_mappings, tags))
 
     def for_relations(self, tags):
-        return self._mapping_for_tags(self.polygons, tags)
+        return self._mapping_for_tags(self.polygon_mappings, tags)
 
     def _tag_filter(self, filter_tags):
-        filter_tags['name'] = {'__any__': []}
+        filter_tags['name'] = set(['__any__'])
         def filter(tags):
             for k in tags.keys():
                 if k not in filter_tags:
                     del tags[k]
                 else:
-                    if tags[k] not in filter_tags[k] and '__any__' not in filter_tags[k]:
+                    if '__any__' in filter_tags[k]:
+                        pass
+                    elif tags[k] in filter_tags[k]:
+                        pass
+                    else:
                         del tags[k]
             if 'name' in tags and len(tags) == 1:
                 del tags['name']
         return filter
 
     def tag_filter_for_nodes(self):
-        tags = dict(self.points)
+        tags = dict(self.point_tags)
         return self._tag_filter(tags)
 
     def tag_filter_for_ways(self):
         tags = dict()
-        for k, v in self.lines.iteritems():
-            tags.setdefault(k, {}).update(v)
+        for k, v in self.line_tags.iteritems():
+            tags.setdefault(k, set()).update(v)
         
-        for k, v in self.polygons.iteritems():
-            tags.setdefault(k, {}).update(v)
+        for k, v in self.polygon_tags.iteritems():
+            tags.setdefault(k, set()).update(v)
         return self._tag_filter(tags)
 
     def tag_filter_for_relations(self):
         tags = dict()
-        for k, v in self.lines.iteritems():
-            tags.setdefault(k, {}).update(v)
-        for k, v in self.polygons.iteritems():
-            tags.setdefault(k, {}).update(v)
+        for k, v in self.line_tags.iteritems():
+            tags.setdefault(k, set()).update(v)
+        for k, v in self.polygon_tags.iteritems():
+            tags.setdefault(k, set()).update(v)
         tags['type'] = set(['multipolygon', 'boundary'])  # for type=multipolygon
         _rel_filter = self._tag_filter(tags)
         def rel_filter(tags):
