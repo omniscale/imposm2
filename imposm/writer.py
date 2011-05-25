@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import array
-
 from multiprocessing import Process, JoinableQueue
 
 from imposm.dbimporter import NodeProcess, WayProcess, RelationProcess
 from imposm.util import create_pool, shutdown_pool
-from imposm.cache import OSMCache
 
 class ImposmWriter(object):
     def __init__(self, mapping, db, cache, pool_size=2, logger=None, dry_run=False):

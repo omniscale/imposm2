@@ -306,7 +306,6 @@ def merge_rings(rings):
         left = ring.refs[0]
         right = ring.refs[-1]
         orig_ring = None
-        insert_endpoint = None
         if left in endpoints:
             orig_ring = endpoints.pop(left)
             if left == orig_ring.refs[-1]:

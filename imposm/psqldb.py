@@ -45,7 +45,7 @@ def find_sql_files(version, mapping):
             postgis_sql = p
         p = '/usr/share/postgresql-8.3-postgis/spatial_ref_sys.sql'
         if exists(p):
-            spatial_ref_sys = p
+            spatial_ref_sys_sql = p
         p = '/etc/postgresql/8.3/main/pg_hba.conf'
         if exists(p):
             pg_hba = p

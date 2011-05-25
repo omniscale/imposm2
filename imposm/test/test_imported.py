@@ -36,13 +36,13 @@ except ImportError:
     raise skip.SkipTest('no imposm_test_conf.py with db_conf found')
 
 def setup_module():
-    global cwd, temp_dir
+    global old_cwd, temp_dir
     old_cwd = os.getcwd()
     temp_dir = tempfile.mkdtemp()
     os.chdir(temp_dir)
     test_osm_file = os.path.join(os.path.dirname(__file__), 'test.out.osm')
-    # with capture_out() as out:
-    imposm.app.main(['--read', test_osm_file, '--write', '-d', db_conf.db, '--host', db_conf.host,
+    with capture_out():
+        imposm.app.main(['--read', test_osm_file, '--write', '-d', db_conf.db, '--host', db_conf.host,
             '--proj', db_conf.proj])
 
 class TestImported(object):
