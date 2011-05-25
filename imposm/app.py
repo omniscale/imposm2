@@ -35,6 +35,7 @@ except ImportError:
     except ImportError:
         pass
 
+import imposm.config
 import imposm.mapping
 import imposm.util
 import imposm.version
@@ -137,6 +138,11 @@ def main(argv=None):
     execfile(mapping_file, mappings)
     tag_mapping = TagMapper([m for n, m in mappings.iteritems() 
         if isinstance(m, imposm.mapping.Mapping)])
+
+    if 'IMPOSM_MULTIPOLYGON_REPORT' in os.environ:
+        imposm.config.imposm_multipolygon_report = float(os.environ['IMPOSM_MULTIPOLYGON_REPORT'])
+    if 'IMPOSM_MULTIPOLYGON_MAX_RING' in os.environ:
+        imposm.config.imposm_multipolygon_max_ring = int(os.environ['IMPOSM_MULTIPOLYGON_MAX_RING'])
 
     if (options.write or options.optimize or options.deploy_tables
         or options.remove_backup_tables or options.recover_tables):

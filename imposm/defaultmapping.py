@@ -20,6 +20,23 @@ from imposm.mapping import (
     GeneralizedTable, UnionView,
 )
 
+# # internal configuration options
+# # uncomment to make changes to the default values
+# import imposm.config
+# 
+# # import relations with missing rings
+# imposm.config.import_partial_relations = False
+# 
+# # select relation builder: union or contains
+# imposm.config.relation_builder = 'contains'
+# 
+# # log relation that take longer than x seconds
+# imposm.config.imposm_multipolygon_report = 60
+# 
+# # skip relations with more rings (0 skip nothing)
+# imposm.config.imposm_multipolygon_max_ring = 0
+
+
 db_conf = Options(
     # db='osm',
     host='localhost',

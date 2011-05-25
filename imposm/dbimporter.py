@@ -21,7 +21,7 @@ from Queue import Queue
 from imposm.base import OSMElem
 from imposm.geom import IncompletePolygonError
 from imposm.mapping import DropElem
-from imposm.multipolygon import ContainsRelationBuilder as RelationBuilder
+from imposm.multipolygon import RelationBuilder
 from imposm.util import setproctitle
 
 

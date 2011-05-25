@@ -26,17 +26,22 @@ from imposm.merge import merge
 
 import imposm.base
 import imposm.geom
+import imposm.config
 import shapely.geometry
 import shapely.ops
 import shapely.geos
 import shapely.prepared
 
-
 import logging
 log = logging.getLogger(__name__)
 
-IMPOSM_MULTIPOLYGON_REPORT = float(os.environ.get('IMPOSM_MULTIPOLYGON_REPORT', 60))
-IMPOSM_MULTIPOLYGON_MAX_RING = int(os.environ.get('IMPOSM_MULTIPOLYGON_MAX_RING', 1000))
+def RelationBuilder(*args, **kw):
+    if imposm.config.relation_builder == 'contains':
+        return ContainsRelationBuilder(*args, **kw)
+    if imposm.config.relation_builder == 'union':
+        return UnionRelationBuilder(*args, **kw)
+    raise ValueError('unknown relation_builder "%s"'
+        % (imposm.config.relation_builder, ))
 
 class RelationBuilderBase(object):
     validate_rings = True
@@ -55,14 +60,21 @@ class RelationBuilderBase(object):
             way = self.ways_cache.get(member[0])
             if way is None:
                 log.debug('way not found %s:%s', self.relation.osm_id, member[0])
-                raise IncompletePolygonError('way not found %s:%s' % (self.relation.osm_id, member[0]))
+                if imposm.config.import_partial_relations:
+                    continue
+                else:
+                    raise IncompletePolygonError('way not found %s:%s' % (self.relation.osm_id, member[0]))
             if way.partial_refs:
                 log.warn('multiple linestrings in way %s (relation %s)',
                        member[0], self.relation.osm_id)
                 raise IncompletePolygonError()
             
             way.coords = self.fetch_way_coords(way)
-            ways.append(way)
+            if way.coords is None:
+                if not imposm.config.import_partial_relations:
+                    raise IncompletePolygonError()
+            else:
+                ways.append(way)
         return ways
     
     def build_rings(self, ways):
@@ -77,17 +89,23 @@ class RelationBuilderBase(object):
                 incomplete_rings.append(ring)
         
         merged_rings = self.build_ring_from_incomplete(incomplete_rings)
+        if len(rings) + len(merged_rings) == 0:
+            raise IncompletePolygonError('linestrings from relation %s have no rings' % (self.relation.osm_id, ))
         
         return rings + merged_rings
         
     def build_ring_from_incomplete(self, incomplete_rings):
         
         rings = merge_rings(incomplete_rings)
-        for ring in rings:
+
+        for ring in rings[:]:
             if not ring.is_closed():
-                raise InvalidGeometryError('linestrings from relation %s do not form a ring' %
+                if imposm.config.import_partial_relations:
+                    rings.remove(ring)
+                    continue
+                else:
+                    raise InvalidGeometryError('linestrings from relation %s do not form a ring' %
                         self.relation.osm_id)
-            
             ring.geom = self.polygon_builder.build_checked_geom(ring, validate=self.validate_rings)
         return rings
     
@@ -99,8 +117,7 @@ class RelationBuilderBase(object):
         if coords is None:
             log.debug('missing coord from way %s in relation %s',
                 way.osm_id, self.relation.osm_id)
-            raise IncompletePolygonError()
-        
+            return None
         return coords
     
     def build_relation_geometry(self, rings):
@@ -126,7 +143,8 @@ class RelationBuilderBase(object):
             rings = self.build_rings(ways)
             time_rings = time.time() - time_start
 
-            if IMPOSM_MULTIPOLYGON_MAX_RING and len(rings) > IMPOSM_MULTIPOLYGON_MAX_RING:
+            if (imposm.config.imposm_multipolygon_max_ring
+                and len(rings) > imposm.config.imposm_multipolygon_max_ring):
                 log.warn('skipping relation %d with %d ways (%.1fms) and %d rings (%.1fms): too many rings',
                     self.relation.osm_id, len(ways), time_ways*1000, len(rings), time_rings*1000)
                 raise IncompletePolygonError('skipping too large multipolygon')
@@ -134,7 +152,7 @@ class RelationBuilderBase(object):
             self.build_relation_geometry(rings)
             time_relations = time.time() - time_start
             
-            if time_ways + time_rings + time_relations > IMPOSM_MULTIPOLYGON_REPORT:
+            if time_ways + time_rings + time_relations > imposm.config.imposm_multipolygon_report:
                 log.warn('building relation %d with %d ways (%.1fms) and %d rings (%.1fms) took %.1fms',
                     self.relation.osm_id, len(ways), time_ways*1000, len(rings), time_rings*1000, time_relations*1000)
         except InvalidGeometryError, ex:
