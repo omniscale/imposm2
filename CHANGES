@@ -1,6 +1,22 @@
 Changelog
 ---------
 
+2.2.0
+~~~~~
+
+- support Shapely speedups (>=1.2.10)
+- new --port option for PostgreSQL port
+- reduced size of nodes cache by ~40%
+- store inserted ways in extra cache
+- support for relations type=boundary
+- new faster relation builder that supports
+  relations with >1000 rings
+- set import options in mapping file
+  - import_partial_relations=True/False
+  - relation_builder=contains(new)/union(old)
+  - imposm_multipolygon_report=60(seconds)
+  - imposm_multipolygon_max_ring=0
+
 2.1.3 2011-04-19
 ~~~~~~~~~~~~~~~~
 
