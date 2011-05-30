@@ -209,7 +209,7 @@ def main(argv=None):
         # errors for missing tables (i.e. generalized tables)
         if not options.dry_run:
             db.create_views(mappings, ignore_errors=True)
-            db.connection.commit()
+            db.commit()
 
         writer = ImposmWriter(tag_mapping, db, cache=cache, 
             pool_size=options.concurrency, logger=logger,
@@ -222,7 +222,7 @@ def main(argv=None):
             db = DB(db_conf)
             db.create_generalized_tables(mappings)
             db.create_views(mappings)
-            db.connection.commit()
+            db.commit()
         
         write_timer.stop()
 
@@ -246,12 +246,12 @@ def main(argv=None):
         db.remove_views(options.table_prefix)
         db.db_conf.prefix = options.table_prefix_production
         db.create_views(mappings)
-        db.connection.commit()
+        db.commit()
     
     if options.remove_backup_tables:
         db = DB(db_conf)
         db.remove_tables(options.table_prefix_backup)
-        db.connection.commit()
+        db.commit()
     
     imposm_timer.stop()
 

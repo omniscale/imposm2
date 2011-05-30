@@ -55,6 +55,9 @@ class PostGISDB(object):
                 psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
         return self._connection
     
+    def commit(self):
+        self.connection.commit()
+    
     @property
     def cur(self):
         if self._cur is None:
