@@ -91,8 +91,8 @@ class PostGISDB(object):
 
         self.connection.commit()
     
-    def wkb_wrapper(self, wkb):
-        return psycopg2.Binary(wkb)
+    def geom_wrapper(self, geom):
+        return psycopg2.Binary(geom.wkb)
     
     def reconnect(self):
         if self._connection:
