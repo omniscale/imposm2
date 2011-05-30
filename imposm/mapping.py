@@ -170,6 +170,7 @@ class TagMapper(object):
         for k, v in self.polygon_tags.iteritems():
             tags.setdefault(k, set()).update(v)
         tags['type'] = set(['multipolygon', 'boundary'])  # for type=multipolygon
+        expected_tags = set(['type', 'name'])
         _rel_filter = self._tag_filter(tags)
         def rel_filter(tags):
             if tags.get('type') == 'multipolygon':
@@ -180,7 +181,15 @@ class TagMapper(object):
             else:
                 tags.clear()
                 return
+            tag_count = len(tags)
             _rel_filter(tags)
+            if len(tags) < tag_count:
+                # we removed tags...
+                if not set(tags).difference(expected_tags):
+                    # but no tags except name and type are left
+                    # remove all, otherwise tags from longest
+                    # way/ring would be used during MP building
+                    tags.clear()
         return rel_filter
 
     def _mapping_for_tags(self, tag_map, tags):

@@ -73,8 +73,12 @@ class TestTagMapper(object):
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm'}), {})
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm', 'type': 'multipolygon'}),
             {'name': 'foo', 'landuse': 'farm', 'type': 'multipolygon'})
-        eq_(tagfilter({'name': 'foo', 'landuse': 'unknown', 'type': 'multipolygon'}),
-            {'name': 'foo', 'type': 'multipolygon'})
+
+        # skip multipolygon with filtered tags, otherwise tags from longest way would be used
+        eq_(tagfilter({'name': 'foo', 'landuse': 'unknown', 'type': 'multipolygon'}), {})
+        eq_(tagfilter({'name': 'foo', 'landuse': 'park', 'type': 'multipolygon'}),
+            {'name': 'foo', 'type': 'multipolygon', 'landuse': 'park'})
+
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'multipolygon'}),
             {'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'multipolygon'})
         
@@ -83,6 +87,11 @@ class TestTagMapper(object):
             {'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'boundary'})
         # boundary relation for non boundary
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm', 'type': 'boundary'}), {})
+
+        # skip boundary with filtered tags, otherwise tags from longest way would be used
+        eq_(tagfilter({'name': 'foo', 'boundary': 'unknown', 'type': 'boundary'}), {})
+        eq_(tagfilter({'name': 'foo', 'boundary': 'administrative', 'type': 'boundary'}),
+            {'name': 'foo', 'boundary': 'administrative', 'type': 'boundary'})
 
     def test_mapping_for_nodes(self):
         for_nodes = self.tag_mapping.for_nodes
