@@ -20,14 +20,13 @@ from . postgis import PostGISDB
 from .. mapping import Options
 
 def DB(db_conf):
-    if db_conf.name == 'postgis':
+    if db_conf.get('name', 'postgis') == 'postgis':
+        # default and backwards compat
         return PostGISDB(db_conf)
     raise ValueError('unknown db: %s' % (db_conf.name,))
 
 def db_conf_from_string(conf, base_db_conf):
     db_conf = _parse_rfc1738_args(conf)
-    if 'name' not in db_conf:
-        db_conf.name = 'postgis' # backwards compat
     if 'proj' not in db_conf:
         db_conf.proj = base_db_conf.proj
     if 'prefix' not in db_conf:
