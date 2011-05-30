@@ -40,7 +40,7 @@ import imposm.mapping
 import imposm.util
 import imposm.version
 from imposm.writer import ImposmWriter
-from imposm.db import DB
+from imposm.db.config import DB
 from imposm.cache import OSMCache
 from imposm.reader import ImposmReader
 from imposm.mapping import TagMapper
@@ -79,6 +79,7 @@ def main(argv=None):
     parser.add_option('-d', '--database', dest='db', metavar='<dbname>')
     parser.add_option('-U', '--user', dest='user', metavar='<user>')
     parser.add_option('--proj', dest='proj', metavar='EPSG:900913')
+    parser.add_option('--connection', dest='connection')
     
     parser.add_option('-c', '--concurrency', dest='concurrency', metavar='N',
                       type='int', default=n_cpu)
@@ -147,21 +148,26 @@ def main(argv=None):
     if (options.write or options.optimize or options.deploy_tables
         or options.remove_backup_tables or options.recover_tables):
         db_conf = mappings['db_conf']
-        db_conf.host = options.host or db_conf.host
-        db_conf.port = options.port or getattr(db_conf, 'port', None) #backw. compat
-        if not options.db:
-            parser.error('-d/--database is required for this mode')
-        db_conf.db = options.db or db_conf.db
-        db_conf.user = options.user or db_conf.user
-        if options.user:
-            from getpass import getpass
-            db_conf.password = getpass('password for %(user)s at %(host)s:' % db_conf)
         
-        if options.proj:
-            if ':' not in options.proj:
-                print 'ERROR: --proj should be in EPSG:00000 format'
-                sys.exit(1)
-            db_conf.proj = options.proj
+        if options.connection:
+            from imposm.db.config import db_conf_from_string
+            db_conf = db_conf_from_string(options.connection, db_conf)
+        else:
+            db_conf.host = options.host or db_conf.host
+            db_conf.port = options.port or getattr(db_conf, 'port', None) #backw. compat
+            if not options.db:
+                parser.error('-d/--database is required for this mode')
+            db_conf.db = options.db or db_conf.db
+            db_conf.user = options.user or db_conf.user
+            if options.user:
+                from getpass import getpass
+                db_conf.password = getpass('password for %(user)s at %(host)s:' % db_conf)
+        
+            if options.proj:
+                if ':' not in options.proj:
+                    print 'ERROR: --proj should be in EPSG:00000 format'
+                    sys.exit(1)
+                db_conf.proj = options.proj
     
     logger = imposm.util.ProgressLog
     
@@ -193,7 +199,6 @@ def main(argv=None):
             for arg in args:
                 logger.message('## reading %s' % arg)
                 reader.read(arg)
-        
         read_timer.stop()
 
     if options.write:
