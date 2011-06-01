@@ -1,10 +1,10 @@
 Changelog
 ---------
 
-2.2.0
-~~~~~
+2.2.0 2011-06-01
+~~~~~~~~~~~~~~~~
 
-- support Shapely speedups (>=1.2.10)
+- support for Shapely speedups (>=1.2.10)
 - new --port option for PostgreSQL port
 - reduced size of nodes cache by ~40%
 - store inserted ways in extra cache
