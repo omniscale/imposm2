@@ -38,9 +38,7 @@ It does not support differential updates (aka minutely database) at the moment.
 
 It only supports PostGIS databases, but the code is quite modular (only a single file contains PostGIS dependent code) and support for SpatialLite, Oracle, etc. can be implemented.
 
-It is quite efficient with memory. You can import 1 GB .osm.bz2 (~Germany) on a system with 2 GB RAM and Europe (~5 GB PBF) works fine on a system with 8 GB RAM. Larger imports (planet.osm) are still possible but will take longer if you don't have 16 GB or more.
-
-The multipolygon relation building is robust and returns valid polygons for nearly all relations, but it is not efficient for polygons with more than 1000 rings.
+It is quite efficient with memory. You can import 1 GB .osm.bz2 (~Germany) on a system with 2 GB RAM and Europe (~5 GB PBF) works fine on a system with 8 GB RAM. Larger imports (planet.osm) are still possible but will take longer if you don't have 16 GB or more (about 20h with 8GB).
 
 There is room for improvements for all of these limitations. Let us know if you want to help out (either with code, or with funding).
 
