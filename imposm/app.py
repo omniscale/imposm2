@@ -125,6 +125,9 @@ def main(argv=None):
 
     (options, args) = parser.parse_args(argv)
 
+    if (argv and len(argv) == 0) or len(sys.argv) == 1:
+        options.help = True
+
     if options.help:
         parser.print_help()
         sys.exit(1)
