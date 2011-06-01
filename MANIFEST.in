@@ -6,3 +6,4 @@ include imposm/cache/tc.c
 include imposm/cache/tc.pyx
 include internal.proto
 include imposm/cache/internal.cc
+exclude imposm/cache/internal.pb.cc
