@@ -12,6 +12,7 @@ Changelog
 - new faster relation builder that supports
   relations with >1000 rings
 - set import options in mapping file
+
   - import_partial_relations=True/False
   - relation_builder=contains(new)/union(old)
   - imposm_multipolygon_report=60(seconds)
