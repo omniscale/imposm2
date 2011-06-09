@@ -20,7 +20,7 @@ import shutil
 from contextlib import contextmanager
 
 import imposm.app
-import imposm.db
+import imposm.db.config
 import imposm.mapping
 
 from nose.tools import eq_
@@ -47,7 +47,7 @@ def setup_module():
 
 class TestImported(object):
     def __init__(self):
-        self.db = imposm.db.DB(db_conf)
+        self.db = imposm.db.config.DB(db_conf)
     
     def test_point(self):
         cur = self.db.cur
