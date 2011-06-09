@@ -175,18 +175,15 @@ class UnionRelationBuilder(RelationBuilderBase):
         
         # add/subtract all rings from largest
         polygon = rings[0]
-        polygon.inserted = True
         rel_tags = relation_tags(self.relation.tags, polygon.tags)
+        polygon.mark_as_inserted(rel_tags)
         
         geom = polygon.geom
         for r in rings[1:]:
             if geom.contains(r.geom):
                 # inside -> hole -> subtract
                 geom = geom.difference(r.geom)
-                if tags_differ(rel_tags, r.tags):
-                    r.inserted = True
-                else:
-                    r.inserted = False
+                r.mark_as_inserted(rel_tags)
             else:
                 # outside or overlap -> merge(union) to multipolygon or to polygon
                 try:
@@ -194,7 +191,7 @@ class UnionRelationBuilder(RelationBuilderBase):
                 except shapely.geos.TopologicalError:
                     raise InvalidGeometryError('multipolygon relation (%s) result is invalid'
                                                ' (topological error)' % self.relation.osm_id)
-                r.inserted = True
+                r.mark_as_inserted(rel_tags)
         if not geom.is_valid:
             raise InvalidGeometryError('multipolygon relation (%s) result is invalid' %
                                        self.relation.osm_id)
@@ -255,13 +252,16 @@ class ContainsRelationBuilder(RelationBuilderBase):
                     # add as shell if it is not a hole
                     shells.add(rings[j])
         
+        rel_tags = relation_tags(self.relation.tags, rings[0].tags)
+
         # build polygons from rings
         polygons = []
         for shell in shells:
-            shell.inserted = True
+            shell.mark_as_inserted(rel_tags)
             exterior = shell.geom.exterior
             interiors = []
             for hole in shell.holes:
+                hole.mark_as_inserted(rel_tags)
                 interiors.append(hole.geom.exterior)
             
             polygons.append(shapely.geometry.Polygon(exterior, interiors))
@@ -271,13 +271,10 @@ class ContainsRelationBuilder(RelationBuilderBase):
         else:
             geom = shapely.geometry.MultiPolygon(polygons)
         
-        rel_tags = relation_tags(self.relation.tags, rings[0].tags)
-        
         geom = imposm.geom.validate_and_simplify(geom)
         if not geom.is_valid:
             raise InvalidGeometryError('multipolygon relation (%s) result is invalid' %
                                        self.relation.osm_id)
-        
         self.relation.geom = geom
         self.relation.tags = rel_tags
         all_ways = []
@@ -376,7 +373,7 @@ class Ring(object):
         self.refs = way.refs
         self.coords = way.coords
         self.tags = dict(way.tags)
-        self._inserted = way.inserted
+        self.inserted = way.inserted
         self.contained_by = None
         self.holes = set()
     
@@ -403,13 +400,9 @@ class Ring(object):
     def is_closed(self):
         return len(self.refs) >= 4 and self.refs[0] == self.refs[-1]
     
-    def _set_inserted(self, value):
+    def mark_as_inserted(self, tags):
         for w in self.ways:
-            w.inserted = value
-        self._inserted = value
-    
-    def _get_inserted(self):
-        return self._inserted
-    
-    # propagate inserted to ways
-    inserted = property(_get_inserted, _set_inserted)
+            if tags_same_or_empty(tags, w.tags):
+                w.inserted = True
+        if tags_same_or_empty(tags, self.tags):
+            self.inserted = True

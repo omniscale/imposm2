@@ -128,14 +128,14 @@ class RelationBuilderTestBase(object):
         eq_(r.geom.area, 100-36)
 
     def test_polygon_w_multiple_holes(self):
-        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1 = Way(1, {'landusage': 'forest'}, [1, 2, 3, 4, 1])
         w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
-        w2 = Way(2, {}, [1, 2, 3, 4, 1])
+        w2 = Way(2, {'water': 'basin'}, [1, 2, 3, 4, 1])
         w2.coords = [(1, 1), (2, 1), (2, 2), (1, 2), (1, 1)]
-        w3 = Way(3, {}, [1, 2, 3, 4, 1])
+        w3 = Way(3, {'landusage': 'scrub'}, [1, 2, 3, 4, 1])
         w3.coords = [(3, 3), (4, 3), (4, 4), (3, 4), (3, 3)]
     
-        r = Relation(1, {}, [
+        r = Relation(1, {'landusage': 'forest'}, [
             (1, 'way', 'outer'), (2, 'way', 'inner'), (3, 'way', 'inner')])
         builder = self.relation_builder(r, None, None)
         rings = builder.build_rings([w1, w2, w3])
@@ -154,18 +154,18 @@ class RelationBuilderTestBase(object):
 
 
     def test_polygon_w_nested_holes(self):
-        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1 = Way(1, {'landusage': 'forest'}, [1, 2, 3, 4, 1])
         w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
-        w2 = Way(2, {}, [1, 2, 3, 4, 1])
+        w2 = Way(2, {'landusage': 'scrub'}, [1, 2, 3, 4, 1])
         w2.coords = [(1, 1), (9, 1), (9, 9), (1, 9), (1, 1)]
-        w3 = Way(3, {}, [5, 6, 7, 8, 5])
+        w3 = Way(3, {}, [5, 6, 7, 8, 5]) # with no tags
         w3.coords = [(2, 2), (8, 2), (8, 8), (2, 8), (2, 2)]
-        w4 = Way(4, {}, [9, 10, 11, 12, 9])
+        w4 = Way(4, {'landusage': 'scrub'}, [9, 10, 11, 12, 9])
         w4.coords = [(3, 3), (7, 3), (7, 7), (3, 7), (3, 3)]
-        w5 = Way(5, {}, [9, 10, 11, 12, 9])
+        w5 = Way(5, {'landusage': 'forest'}, [9, 10, 11, 12, 9])
         w5.coords = [(4, 4), (6, 4), (6, 6), (4, 6), (4, 4)]
     
-        r = Relation(1, {}, [
+        r = Relation(1, {'landusage': 'forest'}, [
             (1, 'way', 'outer'), (2, 'way', 'inner'), (3, 'way', 'inner'),
             (4, 'way', 'inner'), (5, 'way', 'inner')])
         builder = self.relation_builder(r, None, None)
@@ -188,14 +188,14 @@ class RelationBuilderTestBase(object):
         eq_(r.geom.area, 100-64+36-16+4)
 
     def test_polygon_w_touching_holes(self):
-        w1 = Way(1, {}, [1, 2, 3, 4, 1])
+        w1 = Way(1, {'landusage': 'forest'}, [1, 2, 3, 4, 1])
         w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
-        w2 = Way(2, {}, [1, 2, 3, 4, 1])
+        w2 = Way(2, {'landusage': 'scrub'}, [1, 2, 3, 4, 1])
         w2.coords = [(1, 1), (5, 1), (5, 9), (1, 9), (1, 1)]
-        w3 = Way(3, {}, [1, 2, 3, 4, 1])
+        w3 = Way(3, {'water': 'basin'}, [1, 2, 3, 4, 1])
         w3.coords = [(5, 1), (9, 1), (9, 9), (5, 9), (5, 1)]
     
-        r = Relation(1, {}, [
+        r = Relation(1, {'landusage': 'forest'}, [
             (1, 'way', 'outer'), (2, 'way', 'inner'), (3, 'way', 'inner')])
         builder = self.relation_builder(r, None, None)
         rings = builder.build_rings([w1, w2, w3])
@@ -228,7 +228,36 @@ class RelationBuilderTestBase(object):
     
         eq_(r.geom.area, 100)
 
+    def test_inserted_ways_different_tags(self):
+        w1 = Way(1, {'landusage': 'forest'}, [1, 2, 3])
+        w1.coords = [(0, 0), (10, 0), (10, 10)]
+        w2 = Way(2, {'highway': 'secondary'}, [3, 4, 1])
+        w2.coords = [(10, 10), (0, 10), (0, 0)]
+    
+        r = Relation(1, {'landusage': 'forest'}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2])
+        
+        builder.build_relation_geometry(rings)
+        
+        eq_(w1.inserted, True)
+        eq_(w2.inserted, False)
 
+    def test_inserted_multiple_tags(self):
+        w1 = Way(1, {'landusage': 'forest', 'highway': 'secondary'}, [1, 2, 3])
+        w1.coords = [(0, 0), (10, 0), (10, 10)]
+        w2 = Way(2, {'highway': 'secondary'}, [3, 4, 1])
+        w2.coords = [(10, 10), (0, 10), (0, 0)]
+    
+        r = Relation(1, {'landusage': 'forest'}, [(1, 'way', 'outer'), (2, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2])
+        
+        builder.build_relation_geometry(rings)
+        
+        eq_(w1.inserted, False) # also highway=secondary
+        eq_(w2.inserted, False)
+    
 class TestUnionRelationBuilder(RelationBuilderTestBase):
     relation_builder = UnionRelationBuilder
 
