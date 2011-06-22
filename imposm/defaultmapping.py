@@ -18,6 +18,7 @@ from imposm.mapping import (
     String, Bool, Integer, OneOfInt,
     WayZOrder, ZOrder, Direction,
     GeneralizedTable, UnionView,
+    PseudoArea,
 )
 
 # # internal configuration options
@@ -252,6 +253,7 @@ transport_areas = Polygons(
 landusages = Polygons(
     name = 'landusages',
     fields = (
+        ('area', PseudoArea()),
         ('z_order', ZOrder([
             'pedestrian',
             'footway',

@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import division
+import math
 import imposm.geom
 
 ANY = '__any__'
@@ -353,6 +355,38 @@ class Direction(FieldType):
             if value == '-1':
                 return -1
         return 0
+
+class PseudoArea(FieldType):
+    """
+    Return the (pseudo) area of a polygon in square meters.
+    
+    The value is just an approximation since the geometries are in
+    EPSG:4326 and not in a equal-area projection. The approximation
+    is better for smaller polygons (<1%) and should be precise enough
+    to compare geometries for rendering order (larger below smaller).
+    
+    The area of the geometry is multiplied by the cosine of
+    the mid-latitude to compensate the shrinking size towards
+    the poles.
+    """
+    
+    column_type = "REAL"
+    
+    def value(self, val, osm_elem):
+        area = osm_elem.geom.area
+        if not area:
+            return None
+        
+        extent = osm_elem.geom.bounds
+        mid_lat = extent[1] + (abs(extent[3] - extent[1]) / 2)
+        sqr_deg = area * math.cos(math.radians(mid_lat))
+        
+        # convert deg^2 to m^2
+        sqr_m = (math.sqrt(sqr_deg) * (40075160 / 360))**2
+        return sqr_m
+    
+    def extra_fields(self):
+        return []
 
 class OneOfInt(FieldType):
     """
