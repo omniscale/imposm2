@@ -358,16 +358,20 @@ class Direction(FieldType):
 
 class PseudoArea(FieldType):
     """
-    Return the (pseudo) area of a polygon in square meters.
+    Field for the (pseudo) area of a polygon in square meters.
     
     The value is just an approximation since the geometries are in
     EPSG:4326 and not in a equal-area projection. The approximation
-    is better for smaller polygons (<1%) and should be precise enough
+    is good for smaller polygons (<1%) and should be precise enough
     to compare geometries for rendering order (larger below smaller).
     
     The area of the geometry is multiplied by the cosine of
-    the mid-latitude to compensate the shrinking size towards
+    the mid-latitude to compensate the reduced size towards
     the poles.
+    
+    :PostgreSQL datatype: REAL
+    
+    .. versionadded:: 2.2.1
     """
     
     column_type = "REAL"

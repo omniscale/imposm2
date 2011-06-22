@@ -59,6 +59,8 @@ For example::
   )
 
 
+Most types will use the column name to get the value from the tags. For example, ``('tunnel', Bool())`` will convert the values of the key ``tunnel`` to a boolean.
+
 Classes
 ~~~~~~~
 
@@ -99,4 +101,5 @@ Column types
 .. autoclass:: OneOfInt
 .. autoclass:: ZOrder
 .. autoclass:: WayZOrder
+.. autoclass:: PseudoArea
 
