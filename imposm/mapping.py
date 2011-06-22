@@ -71,7 +71,17 @@ class Mapping(object):
             osm_elem.name = ''
     
     def extra_field_names(self):
-        return [n for n,_ in self.fields] + [n for n,_ in self.field_filter]
+        extra_field_names = []
+        for field_name, field_filter in self.field_filter:
+            extra_field_names.append(field_name)
+        
+        for field_name, field in self.fields:
+            field_names = field.extra_fields()
+            if field_names is not None:
+                extra_field_names.extend(field_names)
+            else:
+                extra_field_names.append(field_name)
+        return extra_field_names
     
     def build_geom(self, osm_elem):
         try:
@@ -275,6 +285,16 @@ class DropElem(Exception):
 
 
 class FieldType(object):
+    def extra_fields(self):
+        """
+        List with names of fields (keys) that should be processed
+        during read-phase.
+        
+        Return ``None`` to use the field name from the mapping.
+        Return ``[]`` if no extra fields (keys) are required.
+        """
+        return None
+    
     def value(self, val, osm_elem):
         return val
 
@@ -383,6 +403,9 @@ class ZOrder(FieldType):
         for i, t in enumerate(types[::-1]):
             self.rank[t] = i
 
+    def extra_fields(self):
+        return []
+
     def value(self, val, osm_elem):
         return self.rank.get(osm_elem.type, 0)
 
@@ -419,6 +442,9 @@ class WayZOrder(FieldType):
     }
 
     brunnel_bool = Bool()
+    
+    def extra_fields(self):
+        return []
 
     def value(self, val, osm_elem):
         tags = osm_elem.tags
