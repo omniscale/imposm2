@@ -356,11 +356,12 @@ class PostGISGeneralizedTable(object):
         except psycopg2.ProgrammingError:
             cur.execute('ROLLBACK TO SAVEPOINT pre_drop_table')
         
-
         cur.execute(self._stmt())
         cur.execute(self._idx_stmt())
 
-        cur.execute('select * from geometry_columns where f_table_name = %s', (self.table_name, ))
-        if not cur.fetchall():
-            cur.execute(self._geom_table_stmt())
+        cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
+        if cur.fetchall():
+            # drop old entry to handle changes of SRID
+            cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
+        cur.execute(self._geom_table_stmt())
 
