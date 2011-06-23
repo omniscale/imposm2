@@ -131,7 +131,15 @@ def main(argv=None):
     if options.help:
         parser.print_help()
         sys.exit(1)
-
+    
+    if options.proj:
+        if ':' not in options.proj:
+            print 'ERROR: --proj should be in EPSG:00000 format'
+            sys.exit(1)
+        # check proj if meter_to_mapunit needs to do anything
+        if options.proj.lower() == 'epsg:4326':
+            imposm.mapping.import_srs_is_geographic = True
+    
     mapping_file = os.path.join(os.path.dirname(__file__),
         'defaultmapping.py')
     if options.mapping_file:
@@ -167,9 +175,6 @@ def main(argv=None):
                 db_conf.password = getpass('password for %(user)s at %(host)s:' % db_conf)
         
             if options.proj:
-                if ':' not in options.proj:
-                    print 'ERROR: --proj should be in EPSG:00000 format'
-                    sys.exit(1)
                 db_conf.proj = options.proj
     
     logger = imposm.util.ProgressLog

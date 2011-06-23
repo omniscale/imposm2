@@ -38,6 +38,19 @@ __all__ = [
     'UnionView',
 ]
 
+# changed by imposm.app if the projection is epsg:4326
+import_srs_is_geographic = False
+
+def meter_to_mapunit(meter):
+    """
+    Convert ``meter`` into the mapunit of the import.
+    Only supports EPSG:4326 (degrees) at the moment, all other
+    SRS will use meter as mapunit.
+    """
+    if import_srs_is_geographic:
+        deg_to_meter = (40000 * 1000) / 360
+        return meter / deg_to_meter
+    return meter
 
 class Mapping(object):
     table = None

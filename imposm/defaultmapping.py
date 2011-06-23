@@ -18,7 +18,7 @@ from imposm.mapping import (
     String, Bool, Integer, OneOfInt,
     WayZOrder, ZOrder, Direction,
     GeneralizedTable, UnionView,
-    PseudoArea,
+    PseudoArea, meter_to_mapunit,
 )
 
 # # internal configuration options
@@ -368,37 +368,37 @@ amenities = Points(
 
 motorways_gen1 = GeneralizedTable(
     name = 'motorways_gen1',
-    tolerance = 50.0,
+    tolerance = meter_to_mapunit(50.0),
     origin = motorways,
 )
 
 mainroads_gen1 = GeneralizedTable(
     name = 'mainroads_gen1',
-    tolerance = 50.0,
+    tolerance = meter_to_mapunit(50.0),
     origin = mainroads,
 )
 
 railways_gen1 = GeneralizedTable(
     name = 'railways_gen1',
-    tolerance = 50.0,
+    tolerance = meter_to_mapunit(50.0),
     origin = railways,
 )
 
 motorways_gen0 = GeneralizedTable(
     name = 'motorways_gen0',
-    tolerance = 200.0,
+    tolerance = meter_to_mapunit(200.0),
     origin = motorways_gen1,
 )
 
 mainroads_gen0 = GeneralizedTable(
     name = 'mainroads_gen0',
-    tolerance = 200.0,
+    tolerance = meter_to_mapunit(200.0),
     origin = mainroads_gen1,
 )
 
 railways_gen0 = GeneralizedTable(
     name = 'railways_gen0',
-    tolerance = 200.0,
+    tolerance = meter_to_mapunit(200.0),
     origin = railways_gen1,
 )
 
