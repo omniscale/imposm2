@@ -18,7 +18,7 @@ from imposm.mapping import (
     String, Bool, Integer, OneOfInt,
     WayZOrder, ZOrder, Direction,
     GeneralizedTable, UnionView,
-    PseudoArea, meter_to_mapunit,
+    PseudoArea, meter_to_mapunit, sqr_meter_to_mapunit,
 )
 
 # # internal configuration options
@@ -401,6 +401,21 @@ railways_gen0 = GeneralizedTable(
     tolerance = meter_to_mapunit(200.0),
     origin = railways_gen1,
 )
+
+landusages_gen0 = GeneralizedTable(
+    name = 'landusages_gen0',
+    tolerance = meter_to_mapunit(200.0),
+    origin = landusages,
+    where = "ST_Area(geometry)>%f" % sqr_meter_to_mapunit(500000),
+)
+
+landusages_gen1 = GeneralizedTable(
+    name = 'landusages_gen1',
+    tolerance = meter_to_mapunit(50.0),
+    origin = landusages,
+    where = "ST_Area(geometry)>%f" % sqr_meter_to_mapunit(50000),
+)
+
 
 roads = UnionView(
     name = 'roads',

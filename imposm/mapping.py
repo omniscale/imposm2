@@ -52,6 +52,16 @@ def meter_to_mapunit(meter):
         return meter / deg_to_meter
     return meter
 
+def sqr_meter_to_mapunit(sqr_meter):
+    """
+    Convert ``sqr_meter`` into the mapunit of the import.
+    Only supports EPSG:4326 (degrees) at the moment, all other
+    SRS will use meter as mapunit.
+    """
+    if import_srs_is_geographic:
+        return meter_to_mapunit(math.sqrt(sqr_meter))**2
+    return sqr_meter
+
 class Mapping(object):
     table = None
     fields = ()
