@@ -416,6 +416,19 @@ landusages_gen1 = GeneralizedTable(
     where = "ST_Area(geometry)>%f" % sqr_meter_to_mapunit(50000),
 )
 
+waterareas_gen0 = GeneralizedTable(
+    name = 'waterareas_gen0',
+    tolerance = meter_to_mapunit(200.0),
+    origin = waterareas,
+    where = "ST_Area(geometry)>%f" % sqr_meter_to_mapunit(500000),
+)
+
+waterareas_gen1 = GeneralizedTable(
+    name = 'waterareas_gen1',
+    tolerance = meter_to_mapunit(50.0),
+    origin = waterareas,
+    where = "ST_Area(geometry)>%f" % sqr_meter_to_mapunit(50000),
+)
 
 roads = UnionView(
     name = 'roads',
