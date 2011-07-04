@@ -67,7 +67,6 @@ class ImporterProcess(Process):
             for m in ms:
                 osm_elem = OSMElem(osm_id, geom, type, tags)
                 try:
-                    m.name_filter(osm_elem)
                     m.filter(osm_elem)
                     m.build_geom(osm_elem)
                     extra_args = m.field_values(osm_elem)

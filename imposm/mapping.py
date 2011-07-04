@@ -69,14 +69,6 @@ class Mapping(object):
     classname = None
     _insert_stmt = None
     
-    filter_out_names = set((
-        'fixme', 'fix me', 'fix-me!',
-        'kein name', 'kein',
-        'unbenannt', 'unbekannt',
-        'noch unbekannt', 'noch ohne namen',
-        'noname', 'unnamed', 'namenlos', 'no_name', 'no name',
-    ))
-    
     def __init__(self, name, mapping, fields=None, field_filter=None):
         self.name = name
         self.mapping = mapping
@@ -87,17 +79,13 @@ class Mapping(object):
 
     def _add_name_field(self):
         if not any(1 for name, _type in self.fields if name == 'name'):
-            self.fields += (('name', String()),)
+            self.fields += (('name', Name()),)
     
     @property
     def insert_stmt(self):
         if not self._insert_stmt:
             self._insert_stmt = self.table('osm_' + self.name, self).insert_stmt
         return self._insert_stmt
-    
-    def name_filter(self, osm_elem):
-        if osm_elem.name and osm_elem.name.lower() in self.filter_out_names:
-            osm_elem.name = ''
     
     def extra_field_names(self):
         extra_field_names = []
@@ -173,7 +161,6 @@ class TagMapper(object):
         return self._mapping_for_tags(self.polygon_mappings, tags)
 
     def _tag_filter(self, filter_tags):
-        filter_tags['name'] = set(['__any__'])
         def filter(tags):
             for k in tags.keys():
                 if k not in filter_tags:
@@ -334,6 +321,49 @@ class String(FieldType):
     :PostgreSQL datatype: VARCHAR(255)
     """
     column_type = "VARCHAR(255)"
+
+class Name(String):
+    """
+    Field for name values.
+    
+    :PostgreSQL datatype: VARCHAR(255)
+    """
+    
+    filter_out_names = set((
+        'fixme', 'fix me', 'fix-me!',
+        'kein name', 'kein',
+        'unbenannt', 'unbekannt',
+        'noch unbekannt', 'noch ohne namen',
+        'noname', 'unnamed', 'namenlos', 'no_name', 'no name',
+    ))
+
+    def value(self, val, osm_elem):
+        if val and val.lower() in self.filter_out_names:
+            osm_elem.name = ''
+            val = ''
+        return val
+
+class LocalizedName(Name):
+    """
+    Field for name values.
+    
+    :PostgreSQL datatype: VARCHAR(255)
+    """
+    def __init__(self, coalesce=['name', 'int_name']):
+        self.coalesce_keys = coalesce
+    
+    def extra_fields(self):
+        return self.coalesce_keys
+    
+    def value(self, val, osm_elem):
+        for key in self.coalesce_keys:
+            val = osm_elem.tags.get(key)
+            if val and val.lower() not in self.filter_out_names:
+                osm_elem.name = val
+                return val
+        else:
+            osm_elem.name = ''
+            return ''
 
 class Bool(FieldType):
     """
