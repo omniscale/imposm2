@@ -116,8 +116,8 @@ class PostGISDB(object):
             extra_args = ', %s' * len(extra_arg_names)
             extra_arg_names = ', ' + ', '.join('"' + name + '"' for name in extra_arg_names)
         return """INSERT INTO "%(tablename)s"
-            (osm_id, name, type, geometry %(extra_arg_names)s)
-            VALUES (%%s, %%s, %%s, ST_Transform(ST_GeomFromWKB(%%s, 4326), %(srid)s)
+            (osm_id, type, geometry %(extra_arg_names)s)
+            VALUES (%%s, %%s, ST_Transform(ST_GeomFromWKB(%%s, 4326), %(srid)s)
                 %(extra_args)s)
         """.strip() % dict(tablename=self.table_prefix + mapping.name, srid=self.srid,
             extra_arg_names=extra_arg_names, extra_args=extra_args)
@@ -143,7 +143,6 @@ class PostGISDB(object):
         cur.execute("""
             CREATE TABLE "%s" (
                 osm_id INT4 PRIMARY KEY,
-                name VARCHAR(255),
                 type VARCHAR(255)
                 %s
             );
@@ -272,7 +271,7 @@ class PostGISUnionView(object):
         selects = []
         for mapping in self.mapping.mappings:
             field_str = ', '.join(self._mapping_fields(mapping))
-            selects.append("""SELECT osm_id, name, type, geometry, %s,
+            selects.append("""SELECT osm_id, type, geometry, %s,
                 '%s' as class from "%s" """ % (
                 field_str, mapping.classname or mapping.name, self.db.to_tablename(mapping.name)))
 
@@ -344,7 +343,7 @@ class PostGISGeneralizedTable(object):
             where = ' WHERE ' + self.mapping.where
         else:
             where = ''
-        return """CREATE TABLE "%s" AS (SELECT osm_id, name, type, %s
+        return """CREATE TABLE "%s" AS (SELECT osm_id, type, %s
             ST_Simplify(geometry, %f) as geometry from "%s"%s)""" % (
             self.table_name, fields, self.mapping.tolerance, self.db.to_tablename(self.mapping.origin.name),
             where)

@@ -184,7 +184,7 @@ class DBImporter(threading.Thread):
 
             mapping, osm_id, osm_elem, extra_args = data
             insert_data = self.mappings[mapping]
-            insert_data.append((osm_id, osm_elem.name, osm_elem.type, self.db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
+            insert_data.append((osm_id, osm_elem.type, self.db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
 
             if len(insert_data) >= 128:
                 if not self.dry_run:

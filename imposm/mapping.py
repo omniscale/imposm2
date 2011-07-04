@@ -80,11 +80,15 @@ class Mapping(object):
     def __init__(self, name, mapping, fields=None, field_filter=None):
         self.name = name
         self.mapping = mapping
-        if fields:
-            self.fields = fields
+        self.fields = fields or tuple(self.fields)
+        self._add_name_field()
         if field_filter:
             self.field_filter = field_filter
-        
+
+    def _add_name_field(self):
+        if not any(1 for name, _type in self.fields if name == 'name'):
+            self.fields += (('name', String()),)
+    
     @property
     def insert_stmt(self):
         if not self._insert_stmt:
