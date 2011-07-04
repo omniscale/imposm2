@@ -314,9 +314,11 @@ class PostGISUnionView(object):
             if not ignore_errors:
                 raise
 
-        cur.execute('select * from geometry_columns where f_table_name = %s', (self.view_name, ))
-        if not cur.fetchall():
-            cur.execute(self._geom_table_stmt())
+        cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
+        if cur.fetchall():
+            # drop old entry to handle changes of SRID
+            cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
+        cur.execute(self._geom_table_stmt())
 
 
 class PostGISGeneralizedTable(object):
