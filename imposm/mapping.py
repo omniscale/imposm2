@@ -343,15 +343,19 @@ class Name(String):
     """
     Field for name values.
     
+    Filters out common FixMe values.
+    
     :PostgreSQL datatype: VARCHAR(255)
     """
     
     filter_out_names = set((
         'fixme', 'fix me', 'fix-me!',
+        '0', 'none', 'n/a', 's/n',
         'kein name', 'kein',
         'unbenannt', 'unbekannt',
         'noch unbekannt', 'noch ohne namen',
         'noname', 'unnamed', 'namenlos', 'no_name', 'no name',
+        'editme', '_edit_me_',
     ))
 
     def value(self, val, osm_elem):
