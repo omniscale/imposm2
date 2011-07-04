@@ -28,6 +28,7 @@ __all__ = [
     'ZOrder',
     'PointTable',
     'String',
+    'LocalizedName',
     'LineStringTable',
     'Direction',
     'OneOfInt',
@@ -36,7 +37,17 @@ __all__ = [
     'Bool',
     'GeneralizedTable',
     'UnionView',
+    'set_default_name_field',
 ]
+
+default_name_field = None
+
+def set_default_name_type(type, column_name='name'):
+    """
+    Set new default type for 'name' field.
+    """
+    global default_name_field
+    default_name_field = column_name, type
 
 # changed by imposm.app if the projection is epsg:4326
 import_srs_is_geographic = False
@@ -78,9 +89,15 @@ class Mapping(object):
             self.field_filter = field_filter
 
     def _add_name_field(self):
+        """
+        Add name field to default if not set.
+        """
         if not any(1 for name, _type in self.fields if name == 'name'):
-            self.fields += (('name', Name()),)
-    
+            if default_name_field:
+                self.fields = (default_name_field,) + self.fields
+            else:
+                self.fields = (('name', Name()),) + self.fields
+        
     @property
     def insert_stmt(self):
         if not self._insert_stmt:

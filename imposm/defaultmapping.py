@@ -16,6 +16,7 @@ from imposm.mapping import (
     Options,
     Points, LineStrings, Polygons,
     String, Bool, Integer, OneOfInt,
+    set_default_name_type, LocalizedName,
     WayZOrder, ZOrder, Direction,
     GeneralizedTable, UnionView,
     PseudoArea, meter_to_mapunit, sqr_meter_to_mapunit,
@@ -37,6 +38,8 @@ from imposm.mapping import (
 # # skip relations with more rings (0 skip nothing)
 # imposm.config.imposm_multipolygon_max_ring = 0
 
+
+# set_default_name_type(LocalizedName(['name:en', 'int_name', 'name']))
 
 db_conf = Options(
     # db='osm',
