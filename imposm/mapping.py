@@ -45,6 +45,11 @@ default_name_field = None
 def set_default_name_type(type, column_name='name'):
     """
     Set new default type for 'name' field.
+    
+    ::
+        
+        set_default_name_type(LocalizedName(['name:en', 'int_name', 'name']))
+    
     """
     global default_name_field
     default_name_field = column_name, type
@@ -346,6 +351,8 @@ class Name(String):
     Filters out common FixMe values.
     
     :PostgreSQL datatype: VARCHAR(255)
+
+    .. versionadded:: 2.3.0
     """
     
     filter_out_names = set((
@@ -366,9 +373,14 @@ class Name(String):
 
 class LocalizedName(Name):
     """
-    Field for name values.
+    Field for localized name values.
+    Checks different name keys and uses the first key with
+    a valid value.
     
+    :param coalesce: list of name keys to check
     :PostgreSQL datatype: VARCHAR(255)
+    
+    .. versionadded:: 2.3.0
     """
     def __init__(self, coalesce=['name', 'int_name']):
         self.coalesce_keys = coalesce
@@ -449,7 +461,7 @@ class PseudoArea(FieldType):
     
     :PostgreSQL datatype: REAL
     
-    .. versionadded:: 2.2.1
+    .. versionadded:: 2.3.0
     """
     
     column_type = "REAL"

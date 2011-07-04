@@ -1,6 +1,8 @@
 Data Mapping
 ============
 
+.. module:: imposm.mapping
+
 The data mapping defines which `OSM feature types <http://wiki.openstreetmap.org/wiki/Map_Features>`_ should be imported in which table. The mapping is described with a Python file using classes from ``imposm.mapping`` package.
 
 See `defaultmapping.py <https://bitbucket.org/olt/imposm/src/tip/imposm/defaultmapping.py>`_ as an example.
@@ -61,10 +63,16 @@ For example::
 
 Most types will use the column name to get the value from the tags. For example, ``('tunnel', Bool())`` will convert the values of the key ``tunnel`` to a boolean.
 
+Name field
+^^^^^^^^^^
+
+There is a default field for names if you do not supply a field for the `name` column. You can change the default with :func:`set_default_name_type`.
+
+.. autofunction:: set_default_name_type
+
+
 Classes
 ~~~~~~~
-
-.. module:: imposm.mapping
 
 .. autoclass:: Points
 .. autoclass:: LineStrings
@@ -102,4 +110,8 @@ Column types
 .. autoclass:: ZOrder
 .. autoclass:: WayZOrder
 .. autoclass:: PseudoArea
+.. autoclass:: Name
+.. autoclass:: LocalizedName
+
+
 
