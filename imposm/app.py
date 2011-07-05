@@ -233,8 +233,17 @@ def main(argv=None):
 
         if not options.dry_run:
             db = DB(db_conf)
+
+            logger.message('## creating generalized tables')
+            generalized_timer = imposm.util.Timer('generalizing tables', logger)
             db.create_generalized_tables(mappings)
+            generalized_timer.stop()
+            
+            logger.message('## creating union views')
+            view_timer = imposm.util.Timer('creating views', logger)
             db.create_views(mappings)
+            view_timer.stop()
+
             db.commit()
         
         write_timer.stop()
