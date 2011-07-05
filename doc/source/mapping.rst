@@ -10,7 +10,7 @@ See `defaultmapping.py <https://bitbucket.org/olt/imposm/src/tip/imposm/defaultm
 Tables
 ------
 
-There are three classes for the base geometries: ``Points``, ``LineStrings``  and ``Polygons``. All three clases take the same arguments:
+There are three classes for the base geometries: ``Points``, ``LineStrings``  and ``Polygons``. All three classes take the same arguments:
 
 ``name``
   The name of the resulting table (without any prefix).
