@@ -317,6 +317,17 @@ class UnionView(object):
         self.name = name
         self.mappings = mappings
         self.fields = fields
+        self._add_name_field()
+        
+    def _add_name_field(self):
+        """
+        Add name field to default if not set.
+        """
+        if not any(1 for name, _type in self.fields if name == 'name'):
+            if default_name_field:
+                self.fields = (default_name_field[0], '') + self.fields
+            else:
+                self.fields = (('name', ''),) + self.fields
 
 class DropElem(Exception):
     pass

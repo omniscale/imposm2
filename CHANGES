@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+2.3.1 2011-07-05
+~~~~~~~~~~~~~~~~
+
+- DROP views instead of REPLACE to prevent errors
+  when columns changed
+
 2.3.0 2011-07-05
 ~~~~~~~~~~~~~~~~
 

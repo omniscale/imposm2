@@ -277,7 +277,7 @@ class PostGISUnionView(object):
 
         selects = '\nUNION ALL\n'.join(selects)
 
-        stmt = 'CREATE OR REPLACE VIEW "%s" as (\n%s\n)' % (self.view_name, selects)
+        stmt = 'CREATE VIEW "%s" as (\n%s\n)' % (self.view_name, selects)
         
         return stmt
 
@@ -307,6 +307,9 @@ class PostGISUnionView(object):
         cur.execute('BEGIN')
         try:
             cur.execute('SAVEPOINT pre_create_view')
+            cur.execute('SELECT * FROM pg_views WHERE viewname = %s', (self.view_name, ))
+            if cur.fetchall():
+                cur.execute('DROP VIEW %s' % (self.view_name, ))
             cur.execute(self._view_stmt())
         except psycopg2.ProgrammingError:
             cur.execute('ROLLBACK TO SAVEPOINT pre_create_view')
