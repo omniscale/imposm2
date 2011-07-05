@@ -19,6 +19,9 @@ Multiple CPU/core support
 Unify values
   For example, the boolean values `1`, `on`, `true` and `yes` all become ``TRUE``.
 
+Localized names
+  Look for localized names in a configurable order (e.g. name:de, name:en, int_name, name).
+
 Filter by tags and values
   It only imports data you are going to render/use.
 
