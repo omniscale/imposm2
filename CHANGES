@@ -1,6 +1,17 @@
 Changelog
 ---------
 
+2.3.0 2011-07-05
+~~~~~~~~~~~~~~~~
+
+- new PseudoArea field type
+- new Name and LocalizedName field type
+- update SRS in GeneralizedTables and UnionTables
+- new waterareas_gen0|1 in default style
+- new area field in landusages table
+- new meter_to_mapunit function to use same mapping 
+  for EPSG:4326 and projected SRS
+
 2.2.0 2011-06-01
 ~~~~~~~~~~~~~~~~
 
