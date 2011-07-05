@@ -6,3 +6,4 @@ data/
 doc/build
 .egg-info
 dist/
+build/
