@@ -17,15 +17,15 @@ import os
 from . tc import DeltaCoordsDB, NodeDB, WayDB, InsertedWayDB, RelationDB
 
 class OSMCache(object):
-    def __init__(self, path, suffix='imposm_', prefix='.cache'):
+    def __init__(self, path, prefix='imposm_', suffix='.cache'):
         self.path = path
-        self.suffix = suffix
         self.prefix = prefix
-        self.coords_fname = os.path.join(path, suffix + 'coords' + prefix) 
-        self.nodes_fname = os.path.join(path, suffix + 'nodes' + prefix) 
-        self.ways_fname = os.path.join(path, suffix + 'ways' + prefix) 
-        self.inserted_ways_fname = os.path.join(path, suffix + 'inserted_ways' + prefix) 
-        self.relations_fname = os.path.join(path, suffix + 'relations' + prefix) 
+        self.suffix = suffix
+        self.coords_fname = os.path.join(path, prefix + 'coords' + suffix) 
+        self.nodes_fname = os.path.join(path, prefix + 'nodes' + suffix) 
+        self.ways_fname = os.path.join(path, prefix + 'ways' + suffix) 
+        self.inserted_ways_fname = os.path.join(path, prefix + 'inserted_ways' + suffix) 
+        self.relations_fname = os.path.join(path, prefix + 'relations' + suffix) 
         self.caches = {}
 
     def close_all(self):
