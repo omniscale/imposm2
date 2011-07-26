@@ -93,7 +93,7 @@ def main(argv=None):
     
     
     parser.add_option('--table-prefix',
-        dest='table_prefix', default='osm_new_', metavar='osm_new_',
+        dest='table_prefix', default=None, metavar='osm_new_',
         help='prefix for imported tables')
     parser.add_option('--table-prefix-production',
         dest='table_prefix_production', default='osm_', metavar='osm_',
@@ -159,6 +159,7 @@ def main(argv=None):
     if (options.write or options.optimize or options.deploy_tables
         or options.remove_backup_tables or options.recover_tables):
         db_conf = mappings['db_conf']
+        db_conf.prefix = options.table_prefix or db_conf.prefix
         
         if options.connection:
             from imposm.db.config import db_conf_from_string
