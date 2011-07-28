@@ -32,10 +32,10 @@ class PostGISDB(object):
 
     @property
     def table_prefix(self):
-        return self.db_conf.prefix
+        return self.db_conf.prefix.rstrip('_') + '_'
 
     def to_tablename(self, name):
-        return self.table_prefix.rstrip('_') + '_' + name.lower()
+        return self.table_prefix + name.lower()
 
     @property
     def connection(self):
