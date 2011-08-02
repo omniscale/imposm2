@@ -165,14 +165,14 @@ class PostGISDB(object):
         existing_tables = []
         for row in cur:
             table_name = row[0]
-            if not table_name.startswith((new_prefix, backup_prefix)):
+            if table_name.startswith(existing_prefix) and not table_name.startswith((new_prefix, backup_prefix)):
                 existing_tables.append(table_name)
 
         cur.execute('SELECT indexname FROM pg_indexes WHERE indexname like %s', (existing_prefix + '%', ))
         existing_indexes = set()
         for row in cur:
             index_name = row[0]
-            if not index_name.startswith((new_prefix, backup_prefix)):
+            if table_name.startswith(existing_prefix) and not index_name.startswith((new_prefix, backup_prefix)):
                 existing_indexes.add(index_name)
         
         cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (new_prefix + '%', ))

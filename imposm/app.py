@@ -159,7 +159,10 @@ def main(argv=None):
     if (options.write or options.optimize or options.deploy_tables
         or options.remove_backup_tables or options.recover_tables):
         db_conf = mappings['db_conf']
-        db_conf.prefix = options.table_prefix or db_conf.prefix
+        if options.table_prefix:
+            db_conf.prefix = options.table_prefix
+        else:
+            options.table_prefix = db_conf.prefix
         
         if options.connection:
             from imposm.db.config import db_conf_from_string
