@@ -50,9 +50,9 @@ try:
 except NotImplementedError:
     n_cpu = 2
 
-def setup_logging():
+def setup_logging(debug=False):
     imposm_log = logging.getLogger('imposm')
-    imposm_log.setLevel(logging.INFO)
+    imposm_log.setLevel(logging.DEBUG if debug else logging.INFO)
 
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.DEBUG)
@@ -65,13 +65,15 @@ __version__ = imposm.version.__version__
 
 def main(argv=None):
     setproctitle('imposm: main')
-    setup_logging()
 
     usage = '%prog [options] [input]...'
     parser = optparse.OptionParser(usage=usage, add_help_option=False,
         version="%prog " + __version__)
     parser.add_option('--help', dest='help', action='store_true',
         default=False, help='show this help message and exit')
+    parser.add_option('--debug', action='store_true',
+        default=False, help='show debug information')
+    
     parser.add_option('-m', '--mapping-file', dest='mapping_file',
         metavar='<file>')
     parser.add_option('-h', '--host', dest='host', metavar='<host>')
@@ -124,6 +126,8 @@ def main(argv=None):
         action='store_true')
 
     (options, args) = parser.parse_args(argv)
+
+    setup_logging(debug=options.debug)
 
     if (argv and len(argv) == 0) or len(sys.argv) == 1:
         options.help = True
