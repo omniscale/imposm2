@@ -59,7 +59,7 @@ class Way(object):
                 merge_refs = []
                 merge_refs.extend(self.partial_refs)
             else:
-                merge_refs = self.refs
+                merge_refs = [self.refs]
             merge_refs.append(refs)
             result = multimerge(merge_refs)
             if result is None:
