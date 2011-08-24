@@ -325,7 +325,7 @@ class UnionView(object):
         """
         if not any(1 for name, _type in self.fields if name == 'name'):
             if default_name_field:
-                self.fields = (default_name_field[0], '') + self.fields
+                self.fields = ((default_name_field[0], ''),) + self.fields
             else:
                 self.fields = (('name', ''),) + self.fields
 
