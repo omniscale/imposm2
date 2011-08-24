@@ -212,6 +212,31 @@ class RelationBuilderTestBase(object):
     
         eq_(r.geom.area, 100-64)
 
+    def test_touching_polygons_w_hole(self):
+        w1 = Way(1, {'water': 'riverbank'}, [1, 2, 3, 4, 1])
+        w1.coords = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]
+        w2 = Way(2, {'water': 'riverbank'}, [2, 5, 6, 3, 2])
+        w2.coords = [(10, 0), (30, 0), (30, 10), (10, 10), (10, 0)]
+        w3 = Way(3, {'landusage': 'forest'}, [7, 8, 9, 10, 7])
+        w3.coords = [(2, 2), (8, 2), (8, 8), (2, 8), (2, 2)]
+
+        r = Relation(1, {'water': 'riverbank'}, [
+            (1, 'way', 'outer'), (2, 'way', 'outer'), (3, 'way', 'inner')])
+        builder = self.relation_builder(r, None, None)
+        rings = builder.build_rings([w1, w2, w3])
+        eq_(len(rings), 3)
+        eq_(rings[0].geom.area, 100)
+        eq_(rings[1].geom.area, 200)
+        eq_(rings[2].geom.area, 36)
+
+        builder.build_relation_geometry(rings)
+
+        eq_(rings[0].inserted, True)
+        eq_(rings[1].inserted, True)
+        eq_(rings[2].inserted, False)
+
+        eq_(r.geom.area, 100+200-36)
+
     def test_simple_polygon_from_two_lines(self):
         w1 = Way(1, {}, [1, 2, 3])
         w1.coords = [(0, 0), (10, 0), (10, 10)]

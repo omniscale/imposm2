@@ -248,9 +248,9 @@ class ContainsRelationBuilder(RelationBuilderBase):
                         rings[i].holes.add(rings[j])
                     else:
                         shells.add(rings[j])
-                elif rings[j].contained_by is None:
-                    # add as shell if it is not a hole
-                    shells.add(rings[j])
+            if rings[i].contained_by is None:
+                # add as shell if it is not a hole
+                shells.add(rings[i])
         
         rel_tags = relation_tags(self.relation.tags, rings[0].tags)
 
