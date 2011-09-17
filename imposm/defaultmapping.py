@@ -37,6 +37,9 @@ from imposm.mapping import (
 # 
 # # skip relations with more rings (0 skip nothing)
 # imposm.config.imposm_multipolygon_max_ring = 0
+# 
+# # split ways that are longer than x nodes (0 to split nothing)
+# imposm_linestring_max_length = 50
 
 
 # set_default_name_type(LocalizedName(['name:en', 'int_name', 'name']))

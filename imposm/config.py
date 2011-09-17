@@ -23,3 +23,6 @@ imposm_multipolygon_report = 60
 
 # skip relations with more rings (0 skip nothing)
 imposm_multipolygon_max_ring = 0
+
+# split ways that are longer than x nodes (0 to split nothing)
+imposm_linestring_max_length = 50

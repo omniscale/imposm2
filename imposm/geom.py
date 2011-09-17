@@ -21,6 +21,8 @@ from shapely.geometry.base import BaseGeometry
 from shapely import geometry
 from shapely import wkt
 
+from imposm import config
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -147,11 +149,13 @@ class LineStringBuilder(GeomBuilder):
         if geom.type != 'LineString':
             raise InvalidGeometryError('expected LineString, got %s' % geom.type)
 
-    def to_geom(self, data, max_length=50):
+    def to_geom(self, data, max_length=None):
         if len(data) <= 1:
             return None
         if len(data) == 2 and data[0] == data[1]:
             return None
+        if max_length is None:
+            max_length = config.imposm_linestring_max_length
         if max_length and len(data) > max_length:
             chunks = math.ceil(len(data) / max_length)
             length = int(len(data) // chunks)
