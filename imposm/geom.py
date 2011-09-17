@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import division
+
+import math
+
 import shapely.geos
 from shapely.geometry.base import BaseGeometry
 from shapely import geometry
@@ -143,11 +147,18 @@ class LineStringBuilder(GeomBuilder):
         if geom.type != 'LineString':
             raise InvalidGeometryError('expected LineString, got %s' % geom.type)
 
-    def to_geom(self, data):
+    def to_geom(self, data, max_length=50):
         if len(data) <= 1:
             return None
         if len(data) == 2 and data[0] == data[1]:
             return None
+        if max_length and len(data) > max_length:
+            chunks = math.ceil(len(data) / max_length)
+            length = int(len(data) // chunks)
+            lines = []
+            for i in xrange(1, len(data), length):
+                lines.append(geometry.LineString(data[i-1:i+length]))
+            return lines
         return geometry.LineString(data)
 
     def build_checked_geom(self, osm_elem, validate=False):

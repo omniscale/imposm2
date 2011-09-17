@@ -111,11 +111,14 @@ class WayProcess(ImporterProcess):
                 break
 
             for way in ways:
+                # forward to the next skip id that is not smaller
+                # than our current id
                 while skip_id < way.osm_id:
                     try:
                         skip_id = inserted_ways.next()
                     except StopIteration:
                         skip_id = 2**64
+                
                 if skip_id == way.osm_id:
                     continue
 
@@ -183,7 +186,12 @@ class DBImporter(threading.Thread):
 
             mapping, osm_id, osm_elem, extra_args = data
             insert_data = self.mappings[mapping]
-            insert_data.append((osm_id, osm_elem.type, self.db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
+            
+            if isinstance(osm_elem.geom, (list)):
+                for geom in osm_elem.geom:
+                    insert_data.append((osm_id, osm_elem.type, self.db.geom_wrapper(geom)) + tuple(extra_args))
+            else:
+                insert_data.append((osm_id, osm_elem.type, self.db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
 
             if len(insert_data) >= 128:
                 if not self.dry_run:
