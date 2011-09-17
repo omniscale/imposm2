@@ -142,7 +142,8 @@ class PostGISDB(object):
 
         cur.execute("""
             CREATE TABLE "%s" (
-                osm_id INT4 PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
+                osm_id INT4,
                 type VARCHAR(255)
                 %s
             );
@@ -271,7 +272,7 @@ class PostGISUnionView(object):
         selects = []
         for mapping in self.mapping.mappings:
             field_str = ', '.join(self._mapping_fields(mapping))
-            selects.append("""SELECT osm_id, type, geometry, %s,
+            selects.append("""SELECT id, osm_id, type, geometry, %s,
                 '%s' as class from "%s" """ % (
                 field_str, mapping.classname or mapping.name, self.db.to_tablename(mapping.name)))
 
@@ -346,7 +347,7 @@ class PostGISGeneralizedTable(object):
             where = ' WHERE ' + self.mapping.where
         else:
             where = ''
-        return """CREATE TABLE "%s" AS (SELECT osm_id, type, %s
+        return """CREATE TABLE "%s" AS (SELECT id, osm_id, type, %s
             ST_Simplify(geometry, %f) as geometry from "%s"%s)""" % (
             self.table_name, fields, self.mapping.tolerance, self.db.to_tablename(self.mapping.origin.name),
             where)
