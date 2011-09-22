@@ -46,6 +46,7 @@ class ParserProgress(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         
     def run(self):
+        last_log = time.time()
         counters = {'coords': 0, 'nodes':0, 'ways':0, 'relations':0}
         while True:
             log_statement = self.queue.get()
@@ -54,7 +55,9 @@ class ParserProgress(multiprocessing.Process):
             
             log_type, incr = log_statement
             counters[log_type] += incr
-            self.print_log(counters)
+            if time.time() - last_log > 0.2:
+                last_log = time.time()
+                self.print_log(counters)
         
     @staticmethod
     def message(msg):
@@ -86,6 +89,7 @@ class ProgressLog(object):
         self._total = '/%dk' % (total/1000) if total else ''
         self.title = title
         self.start_time = time.time()
+        self.last_log = time.time()
         self.print_log()
     
     @staticmethod
@@ -103,11 +107,13 @@ class ProgressLog(object):
             self.print_log()
     
     def print_log(self):
-        print >>sys.stderr, "[%s] %s: %dk%s\r" % (
-            timestamp(), self.title,
-            int(self.count/1000), self._total,
-        ),
-        sys.stderr.flush()
+        if time.time() - self.last_log > 0.2:
+            self.last_log = time.time()
+            print >>sys.stderr, "[%s] %s: %dk%s\r" % (
+                timestamp(), self.title,
+                int(self.count/1000), self._total,
+            ),
+            sys.stderr.flush()
     
     def stop(self):
         print >>sys.stderr
