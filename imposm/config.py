@@ -25,4 +25,4 @@ imposm_multipolygon_report = 60
 imposm_multipolygon_max_ring = 0
 
 # split ways that are longer than x nodes (0 to split nothing)
-imposm_linestring_max_length = 50
+imposm_linestring_max_length = 0
