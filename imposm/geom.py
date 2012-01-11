@@ -40,6 +40,9 @@ TOLERANCE_METERS = 1e-3
 SHAPELY_SUPPORTS_BUFFER = shapely.geos.geos_capi_version >= (1, 6, 0)
 
 def validate_and_simplify(geom, meter_units=False):
+    if geom.is_empty:
+        raise InvalidGeometryError('geometry is empty')
+
     if SHAPELY_SUPPORTS_BUFFER:
         # buffer(0) is nearly fast as is_valid 
         return geom.buffer(0)
