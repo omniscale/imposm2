@@ -14,7 +14,7 @@ Custom database schemas
   It creates tables for different data types. This allows easier styling and better performance for rendering in WMS or tile services.
 
 Multiple CPU/core support
-  Impsom is parallel from the ground up. It distributes parsing and processing to multiple CPUs/cores.
+  Imposm is parallel from the ground up. It distributes parsing and processing to multiple CPUs/cores.
   
 Unify values
   For example, the boolean values `1`, `on`, `true` and `yes` all become ``TRUE``.
