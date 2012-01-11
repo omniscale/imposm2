@@ -26,3 +26,9 @@ imposm_multipolygon_max_ring = 0
 
 # split ways that are longer than x nodes (0 to split nothing)
 imposm_linestring_max_length = 0
+
+# create a SERIAL PRIMARY KEY column (id) for all Postgres tables
+# solves cases where osm_id is not unique (e.g. tram and road share the
+# same way and are combined in a union view)
+imposm_pg_serial_id = True
+

@@ -20,6 +20,7 @@ import psycopg2.extensions
 import logging
 log = logging.getLogger(__name__)
 
+from imposm import config
 from imposm.mapping import UnionView, GeneralizedTable, Mapping
 
 class PostGISDB(object):
@@ -140,14 +141,19 @@ class PostGISDB(object):
         for n, t in mapping.fields:
             extra_fields += ', "%s" %s ' % (n, t.column_type)
 
+        if config.imposm_pg_serial_id:
+            serial_column = "id SERIAL PRIMARY KEY,"
+        else:
+            serial_column = ""
+            
         cur.execute("""
             CREATE TABLE "%s" (
-                id SERIAL PRIMARY KEY,
+                %s
                 osm_id INT4,
                 type VARCHAR(255)
                 %s
             );
-        """ % (tablename, extra_fields))
+        """ % (tablename, serial_column, extra_fields))
         cur.execute("""
             SELECT AddGeometryColumn ('', '%(tablename)s', 'geometry',
                                       %(srid)s, '%(pg_geometry_type)s', 2)
@@ -270,11 +276,16 @@ class PostGISUnionView(object):
 
     def _view_stmt(self):
         selects = []
+        if config.imposm_pg_serial_id:
+            serial_column = "id, "
+        else:
+            serial_column = ""
         for mapping in self.mapping.mappings:
             field_str = ', '.join(self._mapping_fields(mapping))
-            selects.append("""SELECT id, osm_id, type, geometry, %s,
+            selects.append("""SELECT %s osm_id, type, geometry, %s,
                 '%s' as class from "%s" """ % (
-                field_str, mapping.classname or mapping.name, self.db.to_tablename(mapping.name)))
+                serial_column, field_str,
+                mapping.classname or mapping.name, self.db.to_tablename(mapping.name)))
 
         selects = '\nUNION ALL\n'.join(selects)
 
@@ -347,9 +358,16 @@ class PostGISGeneralizedTable(object):
             where = ' WHERE ' + self.mapping.where
         else:
             where = ''
-        return """CREATE TABLE "%s" AS (SELECT id, osm_id, type, %s
+        
+        if config.imposm_pg_serial_id:
+            serial_column = "id, "
+        else:
+            serial_column = ""
+    
+        return """CREATE TABLE "%s" AS (SELECT %s osm_id, type, %s
             ST_Simplify(geometry, %f) as geometry from "%s"%s)""" % (
-            self.table_name, fields, self.mapping.tolerance, self.db.to_tablename(self.mapping.origin.name),
+            self.table_name, serial_column, fields, self.mapping.tolerance,
+            self.db.to_tablename(self.mapping.origin.name),
             where)
 
     def create(self):
