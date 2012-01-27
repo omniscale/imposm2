@@ -208,13 +208,16 @@ def main(argv=None):
     if options.read:
         read_timer = imposm.util.Timer('reading', logger)
         
-        if args:
-            reader = ImposmReader(tag_mapping, cache=cache, merge=options.merge_cache,
-                pool_size=options.concurrency, logger=logger)
-            reader.estimated_coords = imposm.util.estimate_records(args)
-            for arg in args:
-                logger.message('## reading %s' % arg)
-                reader.read(arg)
+        if not args:
+            print "no file(s) supplied"
+            sys.exit(2)
+
+        reader = ImposmReader(tag_mapping, cache=cache, merge=options.merge_cache,
+            pool_size=options.concurrency, logger=logger)
+        reader.estimated_coords = imposm.util.estimate_records(args)
+        for arg in args:
+            logger.message('## reading %s' % arg)
+            reader.read(arg)
         read_timer.stop()
 
     if options.write:
