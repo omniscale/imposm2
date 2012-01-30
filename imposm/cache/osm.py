@@ -14,7 +14,9 @@
 
 import os
 
-from . tc import DeltaCoordsDB, NodeDB, WayDB, InsertedWayDB, RelationDB
+import imposm.config
+
+from . tc import DeltaCoordsDB, CoordDB, NodeDB, WayDB, InsertedWayDB, RelationDB
 
 class OSMCache(object):
     def __init__(self, path, prefix='imposm_', suffix='.cache'):
@@ -34,7 +36,11 @@ class OSMCache(object):
         self.caches = {}
 
     def coords_cache(self, mode='r', estimated_records=None):
-        return self._x_cache(self.coords_fname, DeltaCoordsDB, mode, estimated_records)
+        if imposm.config.imposm_compact_coords_cache:
+            coords_db = DeltaCoordsDB
+        else:
+            coords_db = CoordDB
+        return self._x_cache(self.coords_fname, coords_db, mode, estimated_records)
 
     def nodes_cache(self, mode='r', estimated_records=None):
         return self._x_cache(self.nodes_fname, NodeDB, mode, estimated_records)

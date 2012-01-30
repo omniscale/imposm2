@@ -32,3 +32,6 @@ imposm_linestring_max_length = 0
 # same way and are combined in a union view)
 imposm_pg_serial_id = True
 
+# cache coords in a compact storage (with delta encoding)
+# use this when memory is limited
+imposm_compact_coords_cache = True
