@@ -173,15 +173,23 @@ class PostGISDB(object):
         for row in cur:
             table_name = row[0]
             if table_name.startswith(existing_prefix) and not table_name.startswith((new_prefix, backup_prefix)):
+                # osm_ but not osm_new_ or osm_backup
                 existing_tables.append(table_name)
 
         cur.execute('SELECT indexname FROM pg_indexes WHERE indexname like %s', (existing_prefix + '%', ))
         existing_indexes = set()
         for row in cur:
             index_name = row[0]
-            if table_name.startswith(existing_prefix) and not index_name.startswith((new_prefix, backup_prefix)):
+            if index_name.startswith(existing_prefix) and not index_name.startswith((new_prefix, backup_prefix)):
                 existing_indexes.add(index_name)
         
+        cur.execute('SELECT relname FROM pg_class WHERE relname like %s', (existing_prefix + '%_id_seq', ))
+        existing_seq = set()
+        for row in cur:
+            seq_name = row[0]
+            if seq_name.startswith(existing_prefix) and not seq_name.startswith((new_prefix, backup_prefix)):
+                existing_seq.add(seq_name)
+
         cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (new_prefix + '%', ))
         new_tables = []
         for row in cur:
@@ -194,9 +202,17 @@ class PostGISDB(object):
             index_name = row[0]
             new_indexes.add(index_name)
         
+        cur.execute('SELECT relname FROM pg_class WHERE relname like %s', (new_prefix + '%_id_seq', ))
+        new_seq = []
+        for row in cur:
+            seq_name = row[0]
+            new_seq.append(seq_name)
+
+        
         if not new_tables:
             raise RuntimeError('did not found tables to swap')
         
+        # rename existing tables to backup_prefix 
         for table_name in existing_tables:
             rename_to = table_name.replace(existing_prefix, backup_prefix)
             cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
@@ -204,8 +220,11 @@ class PostGISDB(object):
                 cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_geom', rename_to + '_geom'))
             if table_name + '_pkey' in existing_indexes:
                 cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_pkey', rename_to + '_pkey'))
+            if table_name + '_id_seq' in existing_seq:
+                cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
             cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
             
+        # rename new tables to existing_prefix 
         for table_name in new_tables:
             rename_to = table_name.replace(new_prefix, existing_prefix)
             cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
@@ -213,6 +232,8 @@ class PostGISDB(object):
                 cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_geom', rename_to + '_geom'))
             if table_name + '_pkey' in new_indexes:
                 cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_pkey', rename_to + '_pkey'))
+            if table_name + '_id_seq' in new_seq:
+                cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
             cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
         
     def remove_tables(self, prefix):
