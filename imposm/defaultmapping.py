@@ -39,8 +39,11 @@ from imposm.mapping import (
 # imposm.config.imposm_multipolygon_max_ring = 0
 # 
 # # split ways that are longer than x nodes (0 to split nothing)
-# imposm_linestring_max_length = 50
-
+# imposm.config.imposm_linestring_max_length = 50
+# 
+# # cache coords in a compact storage (with delta encoding)
+# # use this when memory is limited (default)
+# imposm.config.imposm_compact_coords_cache = True
 
 # set_default_name_type(LocalizedName(['name:en', 'int_name', 'name']))
 

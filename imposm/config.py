@@ -33,5 +33,5 @@ imposm_linestring_max_length = 0
 imposm_pg_serial_id = True
 
 # cache coords in a compact storage (with delta encoding)
-# use this when memory is limited
+# use this when memory is limited (default)
 imposm_compact_coords_cache = True
