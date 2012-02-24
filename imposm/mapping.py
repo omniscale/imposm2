@@ -288,7 +288,7 @@ class Points(Mapping):
     """
     Table class for point features.
     
-    :PostGIS datatype: POINT (for multi-polygon support)
+    :PostGIS datatype: POINT
     """
     table = PointTable
     geom_builder = imposm.geom.PointBuilder()
@@ -298,7 +298,7 @@ class LineStrings(Mapping):
     """
     Table class for line string features.
     
-    :PostGIS datatype: LINESTRING (for multi-polygon support)
+    :PostGIS datatype: LINESTRING
     """
     table = LineStringTable
     geom_builder = imposm.geom.LineStringBuilder()
@@ -308,7 +308,7 @@ class Polygons(Mapping):
     """
     Table class for polygon features.
     
-    :PostGIS datatype: GEOMETRY (for multi-polygon support)
+    :PostGIS datatype: GEOMETRY (POLYGON does not support multi-polygons)
     """
     table = PolygonTable
     geom_builder = imposm.geom.PolygonBuilder()
