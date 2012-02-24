@@ -24,6 +24,9 @@ There are three classes for the base geometries: ``Points``, ``LineStrings``  an
 ``field_filter``
   Filter table entries based on field values.
 
+``with_type_field``
+  Controls if the the *value* of the mapped key/value should be stored in the ``type`` column. Defaults to ``True``.
+
 .. _mapping:
 
 mapping
