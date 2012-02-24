@@ -158,6 +158,13 @@ class PostGISDB(object):
                                       %(srid)s, '%(pg_geometry_type)s', 2)
         """ % dict(tablename=tablename, srid=self.srid,
                    pg_geometry_type=mapping.geom_type))
+
+        for n, t in mapping.fields:
+            if isinstance(t, TrigramIndex):
+                cur.execute("""
+                    CREATE INDEX "%(tablename)s_trgm_idx_%(column)s" ON "%(tablename)s" USING GIST (%(column)s gist_trgm_ops)
+                """ % dict(tablename=tablename, column=n))
+
         cur.execute("""
             CREATE INDEX "%(tablename)s_geom" ON "%(tablename)s" USING GIST (geometry)
         """ % dict(tablename=tablename))
@@ -172,7 +179,7 @@ class PostGISDB(object):
         for row in cur:
             table_name = row[0]
             if table_name.startswith(existing_prefix) and not table_name.startswith((new_prefix, backup_prefix)):
-                # osm_ but not osm_new_ or osm_backup
+                # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_tables.append(table_name)
 
         cur.execute('SELECT indexname FROM pg_indexes WHERE indexname like %s', (existing_prefix + '%', ))
@@ -180,6 +187,7 @@ class PostGISDB(object):
         for row in cur:
             index_name = row[0]
             if index_name.startswith(existing_prefix) and not index_name.startswith((new_prefix, backup_prefix)):
+                # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_indexes.add(index_name)
         
         cur.execute('SELECT relname FROM pg_class WHERE relname like %s', (existing_prefix + '%_id_seq', ))
@@ -187,6 +195,7 @@ class PostGISDB(object):
         for row in cur:
             seq_name = row[0]
             if seq_name.startswith(existing_prefix) and not seq_name.startswith((new_prefix, backup_prefix)):
+                # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_seq.add(seq_name)
 
         cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (new_prefix + '%', ))
@@ -211,26 +220,28 @@ class PostGISDB(object):
         if not new_tables:
             raise RuntimeError('did not found tables to swap')
         
-        # rename existing tables to backup_prefix 
+        # rename existing tables (osm_) to backup_prefix (osm_backup_)
         for table_name in existing_tables:
             rename_to = table_name.replace(existing_prefix, backup_prefix)
             cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
-            if table_name + '_geom' in existing_indexes:
-                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_geom', rename_to + '_geom'))
-            if table_name + '_pkey' in existing_indexes:
-                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_pkey', rename_to + '_pkey'))
+
+            for idx in existing_indexes:
+                if idx in (table_name + '_geom', table_name + '_pkey') or idx.startswith(table_name + '_trgm_idx_'):
+                    new_idx = idx.replace(table_name, rename_to, 1)
+                    cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (idx, new_idx))
             if table_name + '_id_seq' in existing_seq:
                 cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
             cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
             
-        # rename new tables to existing_prefix 
+        # rename new tables (osm_new_) to existing_prefix (osm_)
         for table_name in new_tables:
             rename_to = table_name.replace(new_prefix, existing_prefix)
             cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
-            if table_name + '_geom' in new_indexes:
-                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_geom', rename_to + '_geom'))
-            if table_name + '_pkey' in new_indexes:
-                cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (table_name + '_pkey', rename_to + '_pkey'))
+
+            for idx in new_indexes:
+                if idx in (table_name + '_geom', table_name + '_pkey') or idx.startswith(table_name + '_trgm_idx_'):
+                    new_idx = idx.replace(table_name, rename_to, 1)
+                    cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (idx, new_idx))
             if table_name + '_id_seq' in new_seq:
                 cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
             cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
@@ -408,3 +419,5 @@ class PostGISGeneralizedTable(object):
             cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
         cur.execute(self._geom_table_stmt())
 
+class TrigramIndex(object):
+    pass
