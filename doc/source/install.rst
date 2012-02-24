@@ -18,7 +18,7 @@ Some parts are written as a C extension and so you need to have a C/C++ compiler
 Imposm also requires the following Python packages:
 
 - `imposm.parser <http://dev.omniscale.net/imposm.parser/>`_: XML and PBF parsing sub-package
-- `Shapely <http://trac.gispython.org/lab/wiki/Shapely>`_: Python bindings for GEOS 
+- `Shapely <http://trac.gispython.org/lab/wiki/Shapely>`_: Python bindings for GEOS. 1.2 or newer is required, >=1.2.10 is recommended.
 
 These Python packages will be installed automatically when you install imposm with ``pip`` or ``easy_install`` (see below).
 
@@ -59,21 +59,3 @@ You can then start Imposm from directly your virtual environment::
 
 .. _`venv`: http://pypi.python.org/pypi/virtualenv
 
-
-
-Optional packages
------------------
-
-Shapely Speedups
-~~~~~~~~~~~~~~~~
-
-It is recommended to install the `shapely_speedups <https://github.com/olt/shapely_speedups>`_ package for larger imports. 
-
-Installation requires GEOS header files.
-
-::
-  
-  sudo aptitude install libgeos-dev
-  pip install https://github.com/olt/shapely_speedups/tarball/master
-
-Imposm automatically detects the presence of that package and will use it.
