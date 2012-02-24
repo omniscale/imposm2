@@ -112,6 +112,8 @@ Column types
 .. autoclass:: PseudoArea
 .. autoclass:: Name
 .. autoclass:: LocalizedName
+.. autoclass:: Type
+.. autoclass:: Class
 
 
 

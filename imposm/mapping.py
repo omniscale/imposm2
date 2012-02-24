@@ -84,11 +84,17 @@ class Mapping(object):
     field_filter = ()
     classname = None
     _insert_stmt = None
-    
-    def __init__(self, name, mapping, fields=None, field_filter=None):
+    with_type_field = True
+
+    def __init__(self, name, mapping, fields=None, field_filter=None, with_type_field=None):
         self.name = name
         self.mapping = mapping
         self.fields = fields or tuple(self.fields)
+        if with_type_field is not None:
+            # allow subclass to define other default by setting it as class variable
+            self.with_type_field = with_type_field
+        if self.with_type_field:
+            self._add_type_field()
         self._add_name_field()
         if field_filter:
             self.field_filter = field_filter
@@ -103,6 +109,12 @@ class Mapping(object):
             else:
                 self.fields = (('name', Name()),) + self.fields
         
+    def _add_type_field(self):
+        """
+        Add type field.
+        """
+        self.fields = (('type', Type()), ) + self.fields
+
     @property
     def insert_stmt(self):
         if not self._insert_stmt:
@@ -346,6 +358,83 @@ class FieldType(object):
     
     def value(self, val, osm_elem):
         return val
+
+class Type(FieldType):
+    """
+    Field for type values (i.e. the *value* of the mapped key/value).
+
+    Use this in combination with ``with_type_field=False`` of the
+    mapping class, if you want to store the value of the mapped
+    key/value in a different column.
+
+    For example, to get a column ``road_class`` instead of ``type``::
+
+        roads = LineStrings(
+            with_type_field = False,
+            name = 'roads',
+            mapping = {
+                'highway': (
+                    'motorway',
+                    'trunk',
+                    'secondary',
+                ),
+            },
+            fields = (
+                ('road_class', Type(),),
+            ),
+        )
+    
+    :PostgreSQL datatype: VARCHAR(255)
+
+    .. versionadded:: 2.4.0
+
+    """
+    column_type = "VARCHAR(255)"
+
+    def extra_fields(self):
+        return []
+
+    def value(self, val, osm_elem):
+        return osm_elem.type
+
+class Class(FieldType):
+    """
+    Field for class values (i.e. the *key* of the mapped key/value).
+
+    Use this if you want to store the key that was used for 
+    this mapping. For example, the following mapping will
+    create a column ``class`` that will have the value
+    ``landuse`` or ``natural``, depending on the feature.
+    
+    ::
+
+        landusages = Polygons(
+            name = 'landusages',
+            fields = (
+                ('class', Class()),
+            ),
+            mapping = {
+                'landuse': (
+                    'wood',
+                ),
+                'natural': (
+                    'wood',
+                ),
+            }
+        )
+
+    :PostgreSQL datatype: VARCHAR(255)
+    
+    .. versionadded:: 2.4.0
+
+    """
+    column_type = "VARCHAR(255)"
+
+    def extra_fields(self):
+        return []
+
+    def value(self, val, osm_elem):
+        return osm_elem.cls
 
 class String(FieldType):
     """
