@@ -56,9 +56,11 @@ You need to tell Imposm the configuration of your database.
 
 ::
 
-  imposm --write --database osm --host localhost --user osm
+  imposm --write --database osm --host localhost --user osm --port 5432
 
-Imposm uses `localhost` for the database host and `osm` for the database user by default. The database name is always required.
+Imposm uses `localhost` for the database host, 5432 for the port and `osm` for the database and user by default. The database name is always required. You can also configure the database with a single ``--connection`` option::
+
+  imposm --write --connection postgis://osm:passwd@localhost/dbname
 
 You can combine reading and writing::
 
@@ -68,7 +70,7 @@ You can combine reading and writing::
 Optimize
 --------
 
-This step is optional and it does some optimization on the created tables. It clusters each table based on the spatial index and does a vacuum analyze on the database.
+This step is optional and it does some optimization on the created tables. It clusters each table based on the spatial index and does a vacuum analyze on the database. The optimizations only work with the import tables, but not the production tables (:ref:`see below <production_tables>`).
 
 ::
 

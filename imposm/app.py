@@ -81,7 +81,9 @@ def main(argv=None):
     parser.add_option('-d', '--database', dest='db', metavar='<dbname>')
     parser.add_option('-U', '--user', dest='user', metavar='<user>')
     parser.add_option('--proj', dest='proj', metavar='EPSG:900913')
-    parser.add_option('--connection', dest='connection')
+    parser.add_option('--connection', dest='connection',
+        help="connection string like postgis://user:pass@host:port/database,"
+             " this overwrites the -h/-p/-d/-U options")
     
     parser.add_option('-c', '--concurrency', dest='concurrency', metavar='N',
                       type='int', default=n_cpu)
