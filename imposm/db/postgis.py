@@ -162,7 +162,7 @@ class PostGISDB(object):
         for n, t in mapping.fields:
             if isinstance(t, TrigramIndex):
                 cur.execute("""
-                    CREATE INDEX "%(tablename)s_trgm_idx_%(column)s" ON "%(tablename)s" USING GIST (%(column)s gist_trgm_ops)
+                    CREATE INDEX "%(tablename)s_trgm_idx_%(column)s" ON "%(tablename)s" USING GIST ("%(column)s" gist_trgm_ops)
                 """ % dict(tablename=tablename, column=n))
 
         cur.execute("""
