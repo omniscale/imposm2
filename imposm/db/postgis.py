@@ -311,6 +311,7 @@ class PostGISUnionView(object):
             serial_column = "id, "
         else:
             serial_column = ""
+
         for mapping in self.mapping.mappings:
             field_str = ', '.join(self._mapping_fields(mapping))
             selects.append("""SELECT %s osm_id, geometry, %s,

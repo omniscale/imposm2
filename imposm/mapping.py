@@ -322,6 +322,7 @@ class GeneralizedTable(object):
         self.origin = origin
         self.classname = origin.name
         self.fields = self.origin.fields
+        self.with_type_field = self.origin.with_type_field
         self.where = where
 
 class UnionView(object):
@@ -330,7 +331,8 @@ class UnionView(object):
         self.mappings = mappings
         self.fields = fields
         self._add_name_field()
-        
+        self._add_type_field()
+
     def _add_name_field(self):
         """
         Add name field to default if not set.
@@ -341,6 +343,14 @@ class UnionView(object):
             else:
                 self.fields = (('name', ''),) + self.fields
 
+    def _add_type_field(self):
+        """
+        Add type field if not configured and at least one mapping has a type field.
+        """
+        if 'type' not in self.fields and any(m.with_type_field for m in self.mappings):
+            self.fields += (('type', None), )
+
+        
 class DropElem(Exception):
     pass
 
