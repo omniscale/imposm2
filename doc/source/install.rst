@@ -28,6 +28,15 @@ To install all requirements on Ubuntu::
                         libprotobuf-dev libtokyocabinet-dev python-psycopg2 \
                         libgeos-c1
 
+.. note::
+
+  A lot of geometries in OpenStreetMap are not valid according to the simple feature model and you might get unexpected results when working with these invalid geometries in GEOS or PostGIS. Imposm tries to make all geometries valid with the help of GEOS, but GEOS fails to do this in rare conditions and sometimes even crashes one of the Imposm process. GEOS became much more robust and you should upgrade to at least 3.2 when you notice ``Assertion [...] failed`` errors.
+
+  You can install GEOS into a local directory and let Imposm use it by setting the ``LD_LIBRARY_PATH`` environment variable::
+
+    export LD_LIBRARY_PATH=~/local/lib
+    imposm [args]
+
 Installation
 ------------
 
