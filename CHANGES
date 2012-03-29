@@ -6,7 +6,14 @@ Changelog
 
 - new Class and Type field types
 - add support to disable automatic ``type`` column
-  
+- new --connection option
+- support for PostGIS Trigram indices
+- do not try to simplify empty geometries
+- limit progress logging to 5 times per second
+- use SERIAL as primary key to support multiple features
+  with the same OSM ID
+- new optional splitting of long line strings
+
 
 2.3.2 2011-09-05
 ~~~~~~~~~~~~~~~~
