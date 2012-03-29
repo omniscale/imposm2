@@ -184,8 +184,8 @@ def main(argv=None):
                 from getpass import getpass
                 db_conf.password = getpass('password for %(user)s at %(host)s:' % db_conf)
         
-            if options.proj:
-                db_conf.proj = options.proj
+        if options.proj:
+            db_conf.proj = options.proj
     
     logger = imposm.util.ProgressLog
     
