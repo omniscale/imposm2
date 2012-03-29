@@ -149,7 +149,7 @@ class PostGISDB(object):
         cur.execute("""
             CREATE TABLE "%s" (
                 %s
-                osm_id INT4
+                osm_id BIGINT
                 %s
             );
         """ % (tablename, serial_column, extra_fields))

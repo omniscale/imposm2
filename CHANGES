@@ -13,6 +13,7 @@ Changelog
 - use SERIAL as primary key to support multiple features
   with the same OSM ID
 - new optional splitting of long line strings
+- use BIGINT for OSM ID in Postgres to support 64bit OSM IDs
 
 
 2.3.2 2011-09-05
