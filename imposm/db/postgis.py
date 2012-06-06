@@ -164,6 +164,14 @@ class PostGISDB(object):
                 cur.execute("""
                     CREATE INDEX "%(tablename)s_trgm_idx_%(column)s" ON "%(tablename)s" USING GIST ("%(column)s" gist_trgm_ops)
                 """ % dict(tablename=tablename, column=n))
+            elif isinstance(t, StringIndex):
+                cur.execute("""
+                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ((lower("%(column)s")))
+                """ % dict(tablename=tablename, column=n))
+            elif isinstance(t, Index):
+                cur.execute("""
+                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ("%(column)s)"
+                """ % dict(tablename=tablename, column=n))
 
         cur.execute("""
             CREATE INDEX "%(tablename)s_geom" ON "%(tablename)s" USING GIST (geometry)
@@ -421,4 +429,10 @@ class PostGISGeneralizedTable(object):
         cur.execute(self._geom_table_stmt())
 
 class TrigramIndex(object):
+    pass
+
+class StringIndex(object):
+    pass
+
+class Index(object):
     pass
