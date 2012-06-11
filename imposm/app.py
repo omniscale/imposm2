@@ -134,6 +134,10 @@ def main(argv=None):
     if (argv and len(argv) == 0) or len(sys.argv) == 1:
         options.help = True
 
+    if not any([options.read, options.write, options.optimize, options.deploy_tables,
+        options.recover_tables, options.remove_backup_tables]):
+        options.help = True
+
     if options.help:
         parser.print_help()
         sys.exit(1)
