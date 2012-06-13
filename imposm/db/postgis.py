@@ -24,6 +24,8 @@ from imposm import config
 from imposm.mapping import UnionView, GeneralizedTable, Mapping
 
 class PostGISDB(object):
+    insert_data_format = 'tuple'
+
     def __init__(self, db_conf):
         self.db_conf = db_conf
         self.srid = int(db_conf['proj'].split(':')[1])

@@ -143,6 +143,9 @@ class Mapping(object):
     
     def field_values(self, osm_elem):
         return [t.value(osm_elem.tags.get(n), osm_elem) for n, t in self.fields]
+
+    def field_dict(self, osm_elem):
+        return dict((n, t.value(osm_elem.tags.get(n), osm_elem)) for n, t in self.fields)
     
     def filter(self, osm_elem):
         [t.filter(osm_elem.tags.get(n), osm_elem) for n, t in self.field_filter]

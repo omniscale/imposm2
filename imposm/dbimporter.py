@@ -1,4 +1,4 @@
-# Copyright 2011 Omniscale (http://omniscale.com)
+# Copyright 2011, 2012 Omniscale (http://omniscale.com)
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ class ImporterProcess(Process):
 
     def setup(self):
         self.db_queue = Queue(256)
-        self.db_importer = threading.Thread(target=db_importer,
+        self.db_importer = threading.Thread(target=self.db_importer,
             args=(self.db_queue, self.db),
             kwargs=dict(dry_run=self.dry_run))
         self.db_importer.start()
@@ -62,6 +62,35 @@ class ImporterProcess(Process):
         self.osm_cache.close_all()
         self.db_queue.put(None)
         self.db_importer.join()
+
+class TupleBasedImporter(ImporterProcess):
+    def db_importer(self, queue, db, dry_run=False):
+        db.reconnect()
+        mappings = defaultdict(list)
+
+        while True:
+            data = queue.get()
+            if data is None:
+                break
+
+            mapping, osm_id, osm_elem, extra_args = data
+            insert_data = mappings[mapping]
+
+            if isinstance(osm_elem.geom, (list)):
+                for geom in osm_elem.geom:
+                    insert_data.append((osm_id, db.geom_wrapper(geom)) + tuple(extra_args))
+            else:
+                insert_data.append((osm_id, db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
+
+            if len(insert_data) >= 128:
+                if not dry_run:
+                    db.insert(mapping, insert_data)
+                del mappings[mapping]
+
+        # flush
+        for mapping, insert_data in mappings.iteritems():
+            if not dry_run:
+                db.insert(mapping, insert_data)
 
     def insert(self, mappings, osm_id, geom, tags):
         inserted = False
@@ -78,6 +107,50 @@ class ImporterProcess(Process):
                     pass
         return inserted
 
+class DictBasedImporter(ImporterProcess):
+    def db_importer(self, queue, db, dry_run=False):
+        db.reconnect()
+        insert_data = []
+
+        while True:
+            data = queue.get()
+            if data is None:
+                break
+
+            mapping, osm_id, osm_elem, fields = data
+
+            if isinstance(osm_elem.geom, (list)):
+                for geom in osm_elem.geom:
+                    insert_data.append((osm_id, db.geom_wrapper(geom)), fields)
+            else:
+                insert_data.append((osm_id, db.geom_wrapper(osm_elem.geom)), fields)
+
+            if len(insert_data) >= 128:
+                if not dry_run:
+                    db.insert(mapping, insert_data)
+                insert_data = []
+        # flush
+        if not dry_run:
+            db.insert(mapping, insert_data)
+
+
+    def insert(self, mappings, osm_id, geom, tags):
+        inserted = False
+        for type, ms in mappings:
+            for m in ms:
+                osm_elem = OSMElem(osm_id, geom, type, tags)
+                try:
+                    m.filter(osm_elem)
+                    m.build_geom(osm_elem)
+                    fields = m.field_dict(osm_elem)
+                    fields['osm_id'] = osm_id
+                    self.db_queue.put((m, osm_id, osm_elem, fields))
+                    inserted = True
+                except DropElem:
+                    pass
+        return inserted
+
+
 class NodeProcess(ImporterProcess):
     name = 'node'
 
@@ -93,6 +166,12 @@ class NodeProcess(ImporterProcess):
                     continue
 
                 self.insert(mappings, node.osm_id, node.coord, node.tags)
+
+class NodeProcessDict(NodeProcess, DictBasedImporter):
+    pass
+
+class NodeProcessTuple(NodeProcess, TupleBasedImporter):
+    pass
 
 class WayProcess(ImporterProcess):
     name = 'way'
@@ -136,12 +215,17 @@ class WayProcess(ImporterProcess):
 
                 self.insert(mappings, way.osm_id, coords, way.tags)
 
+class WayProcessDict(WayProcess, DictBasedImporter):
+    pass
+
+class WayProcessTuple(WayProcess, TupleBasedImporter):
+    pass
 
 class RelationProcess(ImporterProcess):
     name = 'relation'
 
     def __init__(self, in_queue, db, mapper, osm_cache, dry_run, inserted_way_queue):
-        ImporterProcess.__init__(self, in_queue, db, mapper, osm_cache, dry_run)
+        super(RelationProcess, self).__init__(in_queue, db, mapper, osm_cache, dry_run)
         self.inserted_way_queue = inserted_way_queue
 
     def doit(self):
@@ -167,32 +251,8 @@ class RelationProcess(ImporterProcess):
                     if inserted:
                         builder.mark_inserted_ways(self.inserted_way_queue)
 
-# cProfile.runctx('doit()', globals(), locals())
-def db_importer(queue, db, dry_run=False):
-    db.reconnect()
-    mappings = defaultdict(list)
+class RelationProcessDict(RelationProcess, DictBasedImporter):
+    pass
 
-    while True:
-        data = queue.get()
-        if data is None:
-            break
-
-        mapping, osm_id, osm_elem, extra_args = data
-        insert_data = mappings[mapping]
-        
-        if isinstance(osm_elem.geom, (list)):
-            for geom in osm_elem.geom:
-                insert_data.append((osm_id, db.geom_wrapper(geom)) + tuple(extra_args))
-        else:
-            insert_data.append((osm_id, db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
-
-        if len(insert_data) >= 128:
-            if not dry_run:
-                db.insert(mapping, insert_data)
-            del mappings[mapping]
-
-    # flush
-    for mapping, insert_data in mappings.iteritems():
-        if not dry_run:
-            db.insert(mapping, insert_data)
-
+class RelationProcessTuple(RelationProcess, TupleBasedImporter):
+    pass

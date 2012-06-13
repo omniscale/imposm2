@@ -14,8 +14,22 @@
 
 from multiprocessing import Process, JoinableQueue
 
-from imposm.dbimporter import NodeProcess, WayProcess, RelationProcess
+from imposm.dbimporter import NodeProcessTuple, WayProcessTuple, RelationProcessTuple
+from imposm.dbimporter import NodeProcessDict, WayProcessDict, RelationProcessDict
 from imposm.util import create_pool, shutdown_pool
+
+import_processes = {
+    'tuple': {
+        'node': NodeProcessTuple,
+        'way': WayProcessTuple,
+        'relation': RelationProcessTuple,
+    },
+    'dict': {
+        'node': NodeProcessDict,
+        'way': WayProcessDict,
+        'relation': RelationProcessDict,
+    }
+}
 
 class ImposmWriter(object):
     def __init__(self, mapping, db, cache, pool_size=2, logger=None, dry_run=False):
@@ -55,7 +69,8 @@ class ImposmWriter(object):
         way_marker = WayMarkerProcess(inserted_way_queue, self.cache, self.logger)
         way_marker.start()
 
-        self._write_elem(RelationProcess, cache, log, self.pool_size, [inserted_way_queue])
+        self._write_elem(import_processes[self.db.insert_data_format]['relation'],
+            cache, log, self.pool_size, [inserted_way_queue])
 
         inserted_way_queue.put(None)
         way_marker.join()
@@ -63,13 +78,15 @@ class ImposmWriter(object):
     def ways(self):
         cache = self.cache.ways_cache()
         log = self.logger('ways', len(cache))
-        self._write_elem(WayProcess, cache, log, self.pool_size)
+        self._write_elem(import_processes[self.db.insert_data_format]['way'],
+            cache, log, self.pool_size)
         self.cache.remove_inserted_way_cache()
 
     def nodes(self):
         cache = self.cache.nodes_cache()
         log = self.logger('nodes', len(cache))
-        self._write_elem(NodeProcess, cache, log, self.pool_size)
+        self._write_elem(import_processes[self.db.insert_data_format]['node'],
+            cache, log, self.pool_size)
 
 
 class WayMarkerProcess(Process):
