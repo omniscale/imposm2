@@ -118,6 +118,7 @@ class DictBasedImporter(ImporterProcess):
                 break
 
             data['geometry'] = db.geom_wrapper(data['geometry'])
+            insert_data.append(data)
 
             if len(insert_data) >= 128:
                 if not dry_run:
