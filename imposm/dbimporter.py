@@ -117,21 +117,15 @@ class DictBasedImporter(ImporterProcess):
             if data is None:
                 break
 
-            mapping, osm_id, osm_elem, fields = data
-
-            if isinstance(osm_elem.geom, (list)):
-                for geom in osm_elem.geom:
-                    insert_data.append((osm_id, db.geom_wrapper(geom)), fields)
-            else:
-                insert_data.append((osm_id, db.geom_wrapper(osm_elem.geom)), fields)
+            data['geometry'] = db.geom_wrapper(data['geometry'])
 
             if len(insert_data) >= 128:
                 if not dry_run:
-                    db.insert(mapping, insert_data)
+                    db.insert(insert_data)
                 insert_data = []
         # flush
         if not dry_run:
-            db.insert(mapping, insert_data)
+            db.insert(insert_data)
 
 
     def insert(self, mappings, osm_id, geom, tags):
@@ -142,9 +136,14 @@ class DictBasedImporter(ImporterProcess):
                 try:
                     m.filter(osm_elem)
                     m.build_geom(osm_elem)
-                    fields = m.field_dict(osm_elem)
-                    fields['osm_id'] = osm_id
-                    self.db_queue.put((m, osm_id, osm_elem, fields))
+                    if isinstance(osm_elem.geom, (list)):
+                        raise NotImplementedError
+                    self.db_queue.put({
+                        'fields': m.field_dict(osm_elem),
+                        'osm_id': osm_id,
+                        'geometry': osm_elem.geom,
+                        'mapping_names': [m.name],
+                    })
                     inserted = True
                 except DropElem:
                     pass
