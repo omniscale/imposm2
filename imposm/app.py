@@ -131,7 +131,7 @@ def main(argv=None):
 
     setup_logging(debug=options.debug)
 
-    if (argv and len(argv) == 0) or len(sys.argv) == 1:
+    if (argv and len(argv) == 0) or (not argv and len(sys.argv) == 1):
         options.help = True
 
     if not any([options.read, options.write, options.optimize, options.deploy_tables,
