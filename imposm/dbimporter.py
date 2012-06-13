@@ -50,7 +50,9 @@ class ImporterProcess(Process):
 
     def setup(self):
         self.db_queue = Queue(256)
-        self.db_importer = DBImporter(self.db_queue, self.db, dry_run=self.dry_run)
+        self.db_importer = threading.Thread(target=db_importer,
+            args=(self.db_queue, self.db),
+            kwargs=dict(dry_run=self.dry_run))
         self.db_importer.start()
 
     def doit(self):
@@ -165,41 +167,32 @@ class RelationProcess(ImporterProcess):
                     if inserted:
                         builder.mark_inserted_ways(self.inserted_way_queue)
 
+# cProfile.runctx('doit()', globals(), locals())
+def db_importer(queue, db, dry_run=False):
+    db.reconnect()
+    mappings = defaultdict(list)
 
-class DBImporter(threading.Thread):
-    def __init__(self, queue, db, dry_run=False):
-        threading.Thread.__init__(self)
-        self.db = db
-        self.db.reconnect()
-        self.queue = queue
-        self.cur = None
-        self.dry_run = dry_run
-        self.mappings = defaultdict(list)
+    while True:
+        data = queue.get()
+        if data is None:
+            break
 
-    def run(self):
-        # cProfile.runctx('self.doit()', globals(), locals())
-        # def doit(self):
-        while True:
-            data = self.queue.get()
-            if data is None:
-                break
+        mapping, osm_id, osm_elem, extra_args = data
+        insert_data = mappings[mapping]
+        
+        if isinstance(osm_elem.geom, (list)):
+            for geom in osm_elem.geom:
+                insert_data.append((osm_id, db.geom_wrapper(geom)) + tuple(extra_args))
+        else:
+            insert_data.append((osm_id, db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
 
-            mapping, osm_id, osm_elem, extra_args = data
-            insert_data = self.mappings[mapping]
-            
-            if isinstance(osm_elem.geom, (list)):
-                for geom in osm_elem.geom:
-                    insert_data.append((osm_id, self.db.geom_wrapper(geom)) + tuple(extra_args))
-            else:
-                insert_data.append((osm_id, self.db.geom_wrapper(osm_elem.geom)) + tuple(extra_args))
+        if len(insert_data) >= 128:
+            if not dry_run:
+                db.insert(mapping, insert_data)
+            del mappings[mapping]
 
-            if len(insert_data) >= 128:
-                if not self.dry_run:
-                    self.db.insert(mapping, insert_data)
-                del self.mappings[mapping]
-
-        # flush
-        for mapping, insert_data in self.mappings.iteritems():
-            if not self.dry_run:
-                self.db.insert(mapping, insert_data)
+    # flush
+    for mapping, insert_data in mappings.iteritems():
+        if not dry_run:
+            db.insert(mapping, insert_data)
 
