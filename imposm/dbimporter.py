@@ -131,23 +131,43 @@ class DictBasedImporter(ImporterProcess):
 
     def insert(self, mappings, osm_id, geom, tags):
         inserted = False
+        osm_objects = {}
+
         for type, ms in mappings:
             for m in ms:
                 osm_elem = OSMElem(osm_id, geom, type, tags)
                 try:
                     m.filter(osm_elem)
-                    m.build_geom(osm_elem)
-                    if isinstance(osm_elem.geom, (list)):
-                        raise NotImplementedError
-                    self.db_queue.put({
-                        'fields': m.field_dict(osm_elem),
-                        'osm_id': osm_id,
-                        'geometry': osm_elem.geom,
-                        'mapping_names': [m.name],
-                    })
-                    inserted = True
                 except DropElem:
-                    pass
+                    continue
+
+                if m.geom_type in osm_objects:
+                    obj = osm_objects[m.geom_type]
+                    obj['fields'].update(m.field_dict(osm_elem))
+                    obj['mapping_names'].append(m.name)
+                else:
+                    try:
+                        m.build_geom(osm_elem)
+                    except DropElem:
+                        continue
+                    obj = {}
+                    obj['fields'] = m.field_dict(osm_elem)
+                    obj['osm_id'] = osm_id
+                    obj['geometry'] = osm_elem.geom
+                    obj['mapping_names'] = [m.name]
+                    osm_objects[m.geom_type] = obj
+
+                inserted = True
+
+        for obj in osm_objects.itervalues():
+            if isinstance(obj['geometry'], (list, )):
+                for geom in obj['geometry']:
+                    obj_part = obj.copy()
+                    obj_part['geometry'] = geom
+                    self.db_queue.put(obj_part)
+            else:
+                self.db_queue.put(obj)
+
         return inserted
 
 
