@@ -43,7 +43,7 @@ def setup_module():
     test_osm_file = os.path.join(os.path.dirname(__file__), 'test.out.osm')
     with capture_out():
         imposm.app.main(['--read', test_osm_file, '--write', '-d', db_conf.db, '--host', db_conf.host,
-            '--proj', db_conf.proj])
+            '--proj', db_conf.proj, '--table-prefix', db_conf.prefix])
 
 class TestImported(object):
     def __init__(self):
@@ -51,27 +51,27 @@ class TestImported(object):
     
     def test_point(self):
         cur = self.db.cur
-        cur.execute('select osm_id, name, ST_AsText(geometry) from osm_new_places where osm_id = 1')
+        cur.execute('select osm_id, name, ST_AsText(geometry) from %splaces where osm_id = 1' % db_conf.prefix)
         results = cur.fetchall()
         eq_(len(results), 1)
         eq_(results[0], (1, 'Foo', 'POINT(13 47.5)'))
 
     def test_way(self):
         cur = self.db.cur
-        cur.execute('select osm_id, name, ST_AsText(geometry) from osm_new_landusages where osm_id = 1001')
+        cur.execute('select osm_id, name, ST_AsText(geometry) from %slandusages where osm_id = 1001' % db_conf.prefix)
         results = cur.fetchall()
         eq_(len(results), 1)
         eq_(results[0][:-1], (1001, 'way 1001',))
         eq_(roundwkt(results[0][-1]), 'POLYGON((13.0 47.5,14.5 50.0,16.5 49.0,17.0 47.0,14.5 45.5,13.0 47.5),(14.0 47.5,15.0 47.0,15.5 48.0,14.5 48.5,14.0 47.5))')
 
-        cur.execute('select osm_id, name, ST_AsText(geometry) from osm_new_landusages where osm_id = 2001')
+        cur.execute('select osm_id, name, ST_AsText(geometry) from %slandusages where osm_id = 2001' % db_conf.prefix)
         results = cur.fetchall()
         eq_(len(results), 1)
         eq_(results[0][:-1], (2001, 'way 2001',))
         eq_(roundwkt(results[0][-1]), 'POLYGON((23.0 47.5,24.5 50.0,26.5 49.0,27.0 47.0,24.5 45.5,23.0 47.5),(24.5 47.0,25.5 46.5,26.0 47.5,25.0 47.5,24.5 47.0),(24.2 48.25,25.25 47.7,25.7 48.8,24.7 49.25,24.2 48.25))')
 
 
-        cur.execute('select osm_id, name, ST_AsText(geometry) from osm_new_landusages where osm_id = 3001')
+        cur.execute('select osm_id, name, ST_AsText(geometry) from %slandusages where osm_id = 3001' % db_conf.prefix)
         results = cur.fetchall()
         eq_(len(results), 1)
         eq_(results[0][:-1], (3001, 'way 3002',))
