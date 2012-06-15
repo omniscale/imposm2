@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from imposm.dbimporter import DictBasedImporter
+from imposm.dbimporter import DictBasedImporter, TupleBasedImporter
 from imposm import defaultmapping
 
 from nose.tools import eq_, assert_almost_equal
@@ -30,7 +30,7 @@ class TestDictBasedImporter(object):
             (('railway', 'tram'), [defaultmapping.railways]),
             (('landusage', 'grass'), [defaultmapping.landusages]),
         ]
-        self.importer.insert(mappings, 1234, [(0, 0), (1, 0), (1, 1), (0, 0)],
+        assert self.importer.insert(mappings, 1234, [(0, 0), (1, 0), (1, 1), (0, 0)],
             {'highway': 'secondary', 'railway': 'tram', 'oneway': '1',
              'name': 'roundabout',
             }
@@ -64,3 +64,37 @@ class TestDictBasedImporter(object):
             'landusage': 'grass',
             'name': 'roundabout',
         })
+
+class TestTupleBasedImporter(object):
+    def setup(self):
+        dummy_db = None
+        mapper = None
+        self.importer = TupleBasedImporter(None, dummy_db, mapper, None,
+            dry_run=False)
+
+    def test_insert(self):
+        mappings = [
+            (('highway', 'secondary'), [defaultmapping.mainroads]),
+            (('railway', 'tram'), [defaultmapping.railways]),
+            (('landusage', 'grass'), [defaultmapping.landusages]),
+        ]
+        assert self.importer.insert(mappings, 1234, [(0, 0), (1, 0), (1, 1), (0, 0)],
+            {'highway': 'secondary', 'railway': 'tram', 'oneway': '1',
+             'name': 'roundabout',
+            }
+        )
+
+        mainroads_item = self.importer.db_queue.get()
+        eq_(mainroads_item[0], defaultmapping.mainroads)
+        eq_(mainroads_item[1], 1234)
+        eq_(mainroads_item[3], ['roundabout', 'secondary', 0, 0, 1, None, 5])
+
+        railways_item = self.importer.db_queue.get()
+        eq_(railways_item[0], defaultmapping.railways)
+        eq_(railways_item[1], 1234)
+        eq_(railways_item[3], ['roundabout', 'tram', 0, 0, 7])
+
+        landusages_item = self.importer.db_queue.get()
+        eq_(landusages_item[0], defaultmapping.landusages)
+        eq_(landusages_item[1], 1234)
+        eq_(landusages_item[3], ['roundabout', 'grass', 6195822904.182782, 27])
