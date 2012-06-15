@@ -93,8 +93,7 @@ class Mapping(object):
         if with_type_field is not None:
             # allow subclass to define other default by setting it as class variable
             self.with_type_field = with_type_field
-        if self.with_type_field:
-            self._add_type_field()
+        self._add_type_field()
         self._add_name_field()
         if field_filter:
             self.field_filter = field_filter
@@ -113,6 +112,13 @@ class Mapping(object):
         """
         Add type field.
         """
+        if not self.with_type_field:
+            return
+
+        for name, type_ in self.fields:
+            if name == 'type':
+                # do not add type field if already present
+                return
         self.fields = (('type', Type()), ) + self.fields
 
     @property
