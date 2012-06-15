@@ -1,5 +1,3 @@
-.. # -*- restructuredtext -*-
-
 Imposm is an importer for OpenStreetMap data. It reads XML and PBF files and
 can import the data into PostgreSQL/PostGIS databases.
 

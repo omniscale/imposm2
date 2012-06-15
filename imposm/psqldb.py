@@ -18,7 +18,7 @@ from os.path import join, dirname, exists
 
 db_create_template = """
 # run this as postgres user, eg:
-# imposm-pgsql > create_db.sh; sudo su postgres; sh ./create_db.sh
+# imposm-psqldb > create_db.sh; sudo su postgres; sh ./create_db.sh
 set -xe
 createuser --no-superuser --no-createrole --createdb ${user}
 createdb -E UTF8 -O ${user} ${dbname}
