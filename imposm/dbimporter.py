@@ -41,6 +41,7 @@ class ImporterProcess(Process):
         self.osm_cache = osm_cache
         self.db = db
         self.dry_run = dry_run
+        self.db_queue = Queue(256)
 
     def run(self):
         self.setup()
@@ -49,7 +50,6 @@ class ImporterProcess(Process):
         self.teardown()
 
     def setup(self):
-        self.db_queue = Queue(256)
         self.db_importer = threading.Thread(target=self.db_importer,
             args=(self.db_queue, self.db),
             kwargs=dict(dry_run=self.dry_run))
@@ -144,6 +144,7 @@ class DictBasedImporter(ImporterProcess):
                 if m.geom_type in osm_objects:
                     obj = osm_objects[m.geom_type]
                     obj['fields'].update(m.field_dict(osm_elem))
+                    obj['fields'][type[0]] = type[1]
                     obj['mapping_names'].append(m.name)
                 else:
                     try:
@@ -152,6 +153,7 @@ class DictBasedImporter(ImporterProcess):
                         continue
                     obj = {}
                     obj['fields'] = m.field_dict(osm_elem)
+                    obj['fields'][type[0]] = type[1]
                     obj['osm_id'] = osm_id
                     obj['geometry'] = osm_elem.geom
                     obj['mapping_names'] = [m.name]
