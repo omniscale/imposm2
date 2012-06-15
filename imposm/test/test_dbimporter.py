@@ -15,7 +15,7 @@
 from imposm.dbimporter import DictBasedImporter
 from imposm import defaultmapping
 
-from nose.tools import eq_
+from nose.tools import eq_, assert_almost_equal
 
 class TestDictBasedImporter(object):
     def setup(self):
@@ -28,6 +28,7 @@ class TestDictBasedImporter(object):
         mappings = [
             (('highway', 'secondary'), [defaultmapping.mainroads]),
             (('railway', 'tram'), [defaultmapping.railways]),
+            (('landusage', 'grass'), [defaultmapping.landusages]),
         ]
         self.importer.insert(mappings, 1234, [(0, 0), (1, 0), (1, 1), (0, 0)],
             {'highway': 'secondary', 'railway': 'tram', 'oneway': '1',
@@ -35,10 +36,16 @@ class TestDictBasedImporter(object):
             }
         )
 
-        queue_item = self.importer.db_queue.get()
-        eq_(queue_item['mapping_names'], ['mainroads', 'railways'])
-        eq_(queue_item['osm_id'], 1234)
-        eq_(queue_item['fields'], {
+        # get items, sort by mapping_names so that landusages comes first
+        queue_items = [self.importer.db_queue.get(), self.importer.db_queue.get()]
+        queue_items.sort(key=lambda x: x['mapping_names'])
+
+        polygon_item = queue_items[0]
+        linestring_item = queue_items[1]
+
+        eq_(linestring_item['mapping_names'], ['mainroads', 'railways'])
+        eq_(linestring_item['osm_id'], 1234)
+        eq_(linestring_item['fields'], {
             'highway': 'secondary',
             'railway': 'tram',
             'oneway': 1,
@@ -47,4 +54,13 @@ class TestDictBasedImporter(object):
             'tunnel': 0,
             'name': 'roundabout',
             'ref': None
+        })
+        eq_(polygon_item['mapping_names'], ['landusages'])
+        eq_(polygon_item['osm_id'], 1234)
+        assert_almost_equal(polygon_item['fields']['area'], 6195822904.182782)
+        del polygon_item['fields']['area']
+        eq_(polygon_item['fields'], {
+            'z_order': 27,
+            'landusage': 'grass',
+            'name': 'roundabout',
         })
