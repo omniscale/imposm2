@@ -159,24 +159,27 @@ class PostGISDB(object):
         """ % dict(tablename=tablename, srid=self.srid,
                    pg_geometry_type=mapping.geom_type))
 
-        for n, t in mapping.fields:
-            if isinstance(t, TrigramIndex):
-                cur.execute("""
-                    CREATE INDEX "%(tablename)s_trgm_idx_%(column)s" ON "%(tablename)s" USING GIST ("%(column)s" gist_trgm_ops)
-                """ % dict(tablename=tablename, column=n))
-            elif isinstance(t, StringIndex):
-                cur.execute("""
-                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ((lower("%(column)s")))
-                """ % dict(tablename=tablename, column=n))
-            elif isinstance(t, Index):
-                cur.execute("""
-                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ("%(column)s)"
-                """ % dict(tablename=tablename, column=n))
+        self.create_field_indices(cur=cur, mapping=mapping, tablename=tablename)
 
         cur.execute("""
             CREATE INDEX "%(tablename)s_geom" ON "%(tablename)s" USING GIST (geometry)
         """ % dict(tablename=tablename))
     
+    def create_field_indices(self, cur, mapping, tablename):
+        for n, t in mapping.fields:
+            if isinstance(t, TrigramIndex):
+                cur.execute("""
+                    CREATE INDEX "%(tablename)s_trgm_idx_%(column)s" ON "%(tablename)s" USING GIST ("%(column)s" gist_trgm_ops)
+                """ % dict(tablename=tablename, column=n))
+            if isinstance(t, StringIndex):
+                cur.execute("""
+                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ((lower("%(column)s")))
+                """ % dict(tablename=tablename, column=n))
+            if isinstance(t, Index):
+                cur.execute("""
+                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ("%(column)s)"
+                """ % dict(tablename=tablename, column=n))
+
     def swap_tables(self, new_prefix, existing_prefix, backup_prefix):
         cur = self.connection.cursor()
 
