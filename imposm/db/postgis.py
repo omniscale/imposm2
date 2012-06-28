@@ -171,13 +171,9 @@ class PostGISDB(object):
                 cur.execute("""
                     CREATE INDEX "%(tablename)s_trgm_idx_%(column)s" ON "%(tablename)s" USING GIST ("%(column)s" gist_trgm_ops)
                 """ % dict(tablename=tablename, column=n))
-            if isinstance(t, StringIndex):
+            if isinstance(t, (StringIndex, Index)):
                 cur.execute("""
-                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ((lower("%(column)s")))
-                """ % dict(tablename=tablename, column=n))
-            if isinstance(t, Index):
-                cur.execute("""
-                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ("%(column)s)"
+                    CREATE INDEX "%(tablename)s_idx_%(column)s" ON "%(tablename)s" ("%(column)s")
                 """ % dict(tablename=tablename, column=n))
 
     def swap_tables(self, new_prefix, existing_prefix, backup_prefix):
