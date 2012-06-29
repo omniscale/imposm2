@@ -1,11 +1,11 @@
 # Copyright 2011 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import time
+import uuid
+from contextlib import contextmanager
 
 import psycopg2
 import psycopg2.extensions
@@ -55,16 +57,27 @@ class PostGISDB(object):
             self._connection.set_isolation_level(
                 psycopg2.extensions.ISOLATION_LEVEL_READ_COMMITTED)
         return self._connection
-    
+
     def commit(self):
         self.connection.commit()
-    
+
     @property
     def cur(self):
         if self._cur is None:
             self._cur = self.connection.cursor()
         return self._cur
-    
+
+    @contextmanager
+    def savepoint(self, cur, raise_errors=False):
+        savepoint_name = 'savepoint' + uuid.uuid4().get_hex()
+        try:
+            cur.execute('SAVEPOINT %s' % savepoint_name)
+            yield
+        except psycopg2.ProgrammingError:
+            cur.execute('ROLLBACK TO SAVEPOINT %s' % savepoint_name)
+            if raise_errors:
+                raise
+
     def insert(self, mapping, insert_data, tries=0):
         insert_stmt = self.insert_stmt(mapping)
         try:
@@ -91,10 +104,10 @@ class PostGISDB(object):
                     self.connection.commit()
 
         self.connection.commit()
-    
+
     def geom_wrapper(self, geom):
         return psycopg2.Binary(geom.wkb)
-    
+
     def reconnect(self):
         if self._connection:
             try:
@@ -131,11 +144,11 @@ class PostGISDB(object):
     def create_table(self, mapping):
         tablename = self.table_prefix + mapping.name
         cur = self.connection.cursor()
-        cur.execute('SAVEPOINT pre_drop_tables')
-        try:
+
+        with self.savepoint(cur):
             cur.execute('DROP TABLE "' + tablename + '" CASCADE')
-        except psycopg2.ProgrammingError:
-            cur.execute('ROLLBACK TO SAVEPOINT pre_drop_tables')
+        with self.savepoint(cur):
+            cur.execute('DROP VIEW "' + tablename + '" CASCADE')
 
         extra_fields = ''
         for n, t in mapping.fields:
@@ -145,7 +158,7 @@ class PostGISDB(object):
             serial_column = "id SERIAL PRIMARY KEY,"
         else:
             serial_column = ""
-            
+
         cur.execute("""
             CREATE TABLE "%s" (
                 %s
@@ -164,7 +177,7 @@ class PostGISDB(object):
         cur.execute("""
             CREATE INDEX "%(tablename)s_geom" ON "%(tablename)s" USING GIST (geometry)
         """ % dict(tablename=tablename))
-    
+
     def create_field_indices(self, cur, mapping, tablename):
         for n, t in mapping.fields:
             if isinstance(t, TrigramIndex):
@@ -180,7 +193,7 @@ class PostGISDB(object):
         cur = self.connection.cursor()
 
         self.remove_tables(backup_prefix)
-        
+
         cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (existing_prefix + '%', ))
         existing_tables = []
         for row in cur:
@@ -196,7 +209,7 @@ class PostGISDB(object):
             if index_name.startswith(existing_prefix) and not index_name.startswith((new_prefix, backup_prefix)):
                 # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_indexes.add(index_name)
-        
+
         cur.execute('SELECT relname FROM pg_class WHERE relname like %s', (existing_prefix + '%_id_seq', ))
         existing_seq = set()
         for row in cur:
@@ -216,17 +229,17 @@ class PostGISDB(object):
         for row in cur:
             index_name = row[0]
             new_indexes.add(index_name)
-        
+
         cur.execute('SELECT relname FROM pg_class WHERE relname like %s', (new_prefix + '%_id_seq', ))
         new_seq = []
         for row in cur:
             seq_name = row[0]
             new_seq.append(seq_name)
 
-        
+
         if not new_tables:
             raise RuntimeError('did not found tables to swap')
-        
+
         # rename existing tables (osm_) to backup_prefix (osm_backup_)
         for table_name in existing_tables:
             rename_to = table_name.replace(existing_prefix, backup_prefix)
@@ -239,7 +252,7 @@ class PostGISDB(object):
             if table_name + '_id_seq' in existing_seq:
                 cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
             cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
-            
+
         # rename new tables (osm_new_) to existing_prefix (osm_)
         for table_name in new_tables:
             rename_to = table_name.replace(new_prefix, existing_prefix)
@@ -252,32 +265,32 @@ class PostGISDB(object):
             if table_name + '_id_seq' in new_seq:
                 cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
             cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
-        
+
     def remove_tables(self, prefix):
         cur = self.connection.cursor()
         cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (prefix + '%', ))
         remove_tables = [row[0] for row in cur]
-        
+
         for table_name in remove_tables:
             cur.execute("DROP TABLE %s CASCADE" % (table_name, ))
             cur.execute("DELETE FROM geometry_columns WHERE f_table_name = %s", (table_name, ))
-        
+
 
     def remove_views(self, prefix):
         cur = self.connection.cursor()
         cur.execute('SELECT viewname FROM pg_views WHERE viewname like %s', (prefix + '%', ))
         remove_views = [row[0] for row in cur]
-        
+
         for view_name in remove_views:
             cur.execute('DROP VIEW "%s" CASCADE' % (view_name, ))
             cur.execute("DELETE FROM geometry_columns WHERE f_table_name = %s", (view_name, ))
-        
-    
+
+
     def create_views(self, mappings, ignore_errors=False):
         for mapping in mappings.values():
             if isinstance(mapping, UnionView):
                 PostGISUnionView(self, mapping).create(ignore_errors=ignore_errors)
-    
+
     def create_generalized_tables(self, mappings):
         mappings = [m for m in mappings.values() if isinstance(m, GeneralizedTable)]
         for mapping in sorted(mappings, key=lambda x: x.name, reverse=True):
@@ -329,7 +342,7 @@ class PostGISUnionView(object):
         selects = '\nUNION ALL\n'.join(selects)
 
         stmt = 'CREATE VIEW "%s" as (\n%s\n)' % (self.view_name, selects)
-        
+
         return stmt
 
     def _geom_table_stmt(self):
@@ -356,16 +369,12 @@ class PostGISUnionView(object):
     def create(self, ignore_errors):
         cur = self.db.connection.cursor()
         cur.execute('BEGIN')
-        try:
-            cur.execute('SAVEPOINT pre_create_view')
+
+        with self.db.savepoint(cur, raise_errors=not ignore_errors):
             cur.execute('SELECT * FROM pg_views WHERE viewname = %s', (self.view_name, ))
             if cur.fetchall():
                 cur.execute('DROP VIEW %s' % (self.view_name, ))
             cur.execute(self._view_stmt())
-        except psycopg2.ProgrammingError:
-            cur.execute('ROLLBACK TO SAVEPOINT pre_create_view')
-            if not ignore_errors:
-                raise
 
         cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
         if cur.fetchall():
@@ -397,12 +406,12 @@ class PostGISGeneralizedTable(object):
             where = ' WHERE ' + self.mapping.where
         else:
             where = ''
-        
+
         if config.imposm_pg_serial_id:
             serial_column = "id, "
         else:
             serial_column = ""
-    
+
         return """CREATE TABLE "%s" AS (SELECT %s osm_id, %s
             ST_Simplify(geometry, %f) as geometry from "%s"%s)""" % (
             self.table_name, serial_column, fields, self.mapping.tolerance,
@@ -412,12 +421,9 @@ class PostGISGeneralizedTable(object):
     def create(self):
         cur = self.db.connection.cursor()
         cur.execute('BEGIN')
-        try:
-            cur.execute('SAVEPOINT pre_drop_table')
+        with self.db.savepoint(cur):
             cur.execute('DROP TABLE "%s" CASCADE' % (self.table_name, ))
-        except psycopg2.ProgrammingError:
-            cur.execute('ROLLBACK TO SAVEPOINT pre_drop_table')
-        
+
         cur.execute(self._stmt())
         cur.execute(self._idx_stmt())
 
