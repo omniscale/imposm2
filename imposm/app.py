@@ -1,11 +1,11 @@
 # Copyright 2011 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -73,7 +73,7 @@ def main(argv=None):
         default=False, help='show this help message and exit')
     parser.add_option('--debug', action='store_true',
         default=False, help='show debug information')
-    
+
     parser.add_option('-m', '--mapping-file', dest='mapping_file',
         metavar='<file>')
     parser.add_option('-h', '--host', dest='host', metavar='<host>')
@@ -84,7 +84,7 @@ def main(argv=None):
     parser.add_option('--connection', dest='connection',
         help="connection string like postgis://user:pass@host:port/database,"
              " this overwrites the -h/-p/-d/-U options")
-    
+
     parser.add_option('-c', '--concurrency', dest='concurrency', metavar='N',
                       type='int', default=n_cpu)
 
@@ -94,8 +94,8 @@ def main(argv=None):
         action='store_true')
     parser.add_option('--cache-dir', dest='cache_dir', default='.',
         help="path where node/ways/relations should be cached [current working dir]")
-    
-    
+
+
     parser.add_option('--table-prefix',
         dest='table_prefix', default=None, metavar='osm_new_',
         help='prefix for imported tables')
@@ -122,7 +122,7 @@ def main(argv=None):
         'move backup tables to production tables')
     parser.add_option('--remove-backup-tables', dest='remove_backup_tables', default=False,
         action='store_true')
-        
+
 
     parser.add_option('-n', '--dry-run', dest='dry_run', default=False,
         action='store_true')
@@ -141,7 +141,7 @@ def main(argv=None):
     if options.help:
         parser.print_help()
         sys.exit(1)
-    
+
     if options.proj:
         if ':' not in options.proj:
             print 'ERROR: --proj should be in EPSG:00000 format'
@@ -149,7 +149,7 @@ def main(argv=None):
         # check proj if meter_to_mapunit needs to do anything
         if options.proj.lower() == 'epsg:4326':
             imposm.mapping.import_srs_is_geographic = True
-    
+
     mapping_file = os.path.join(os.path.dirname(__file__),
         'defaultmapping.py')
     if options.mapping_file:
@@ -158,7 +158,7 @@ def main(argv=None):
 
     mappings = {}
     execfile(mapping_file, mappings)
-    tag_mapping = TagMapper([m for n, m in mappings.iteritems() 
+    tag_mapping = TagMapper([m for n, m in mappings.iteritems()
         if isinstance(m, imposm.mapping.Mapping)])
 
     if 'IMPOSM_MULTIPOLYGON_REPORT' in os.environ:
@@ -166,14 +166,21 @@ def main(argv=None):
     if 'IMPOSM_MULTIPOLYGON_MAX_RING' in os.environ:
         imposm.config.imposm_multipolygon_max_ring = int(os.environ['IMPOSM_MULTIPOLYGON_MAX_RING'])
 
+    if options.table_prefix:
+        options.table_prefix = options.table_prefix.rstrip('_') + '_'
+    if options.table_prefix_production:
+        options.table_prefix_production = options.table_prefix_production.rstrip('_') + '_'
+    if options.table_prefix_backup:
+        options.table_prefix_backup = options.table_prefix_backup.rstrip('_') + '_'
+
     if (options.write or options.optimize or options.deploy_tables
         or options.remove_backup_tables or options.recover_tables):
         db_conf = mappings['db_conf']
         if options.table_prefix:
             db_conf.prefix = options.table_prefix
         else:
-            options.table_prefix = db_conf.prefix
-        
+            options.table_prefix = db_conf.prefix.rstrip('_') + '_'
+
         if options.connection:
             from imposm.db.config import db_conf_from_string
             db_conf = db_conf_from_string(options.connection, db_conf)
@@ -187,14 +194,14 @@ def main(argv=None):
             if options.user:
                 from getpass import getpass
                 db_conf.password = getpass('password for %(user)s at %(host)s:' % db_conf)
-        
+
         if options.proj:
             db_conf.proj = options.proj
-    
+
     logger = imposm.util.ProgressLog
-    
+
     imposm_timer = imposm.util.Timer('imposm', logger)
-    
+
     if options.read:
         if not options.merge_cache:
             cache_files = glob.glob(os.path.join(options.cache_dir, 'imposm_*.cache'))
@@ -208,12 +215,12 @@ def main(argv=None):
                     sys.exit(2)
                 for cache_file in cache_files:
                     os.unlink(cache_file)
-    
+
     cache = OSMCache(options.cache_dir)
-    
+
     if options.read:
         read_timer = imposm.util.Timer('reading', logger)
-        
+
         if not args:
             print "no file(s) supplied"
             sys.exit(2)
@@ -229,7 +236,7 @@ def main(argv=None):
     if options.write:
         db = DB(db_conf)
         write_timer = imposm.util.Timer('writing', logger)
-        
+
         logger.message('## dropping/creating tables')
         if not options.dry_run:
             db.create_tables(tag_mapping.mappings)
@@ -241,7 +248,7 @@ def main(argv=None):
             db.create_views(mappings, ignore_errors=True)
             db.commit()
 
-        writer = ImposmWriter(tag_mapping, db, cache=cache, 
+        writer = ImposmWriter(tag_mapping, db, cache=cache,
             pool_size=options.concurrency, logger=logger,
             dry_run=options.dry_run)
         writer.relations()
@@ -255,14 +262,14 @@ def main(argv=None):
             generalized_timer = imposm.util.Timer('generalizing tables', logger)
             db.create_generalized_tables(mappings)
             generalized_timer.stop()
-            
+
             logger.message('## creating union views')
             view_timer = imposm.util.Timer('creating views', logger)
             db.create_views(mappings)
             view_timer.stop()
 
             db.commit()
-        
+
         write_timer.stop()
 
     if options.optimize:
@@ -271,27 +278,27 @@ def main(argv=None):
         logger.message('## optimizing tables')
         db.optimize(mappings)
         optimize_timer.stop()
-    
+
     if options.recover_tables:
         assert not options.deploy_tables, ('cannot swap and recover production '
             'tables at the same time')
         options.table_prefix, options.table_prefix_backup = \
             options.table_prefix_backup, options.table_prefix
-        
+
     if options.deploy_tables or options.recover_tables:
         db = DB(db_conf)
-        db.swap_tables(options.table_prefix, 
+        db.swap_tables(options.table_prefix,
             options.table_prefix_production, options.table_prefix_backup)
         db.remove_views(options.table_prefix)
         db.db_conf.prefix = options.table_prefix_production
         db.create_views(mappings)
         db.commit()
-    
+
     if options.remove_backup_tables:
         db = DB(db_conf)
         db.remove_tables(options.table_prefix_backup)
         db.commit()
-    
+
     imposm_timer.stop()
 
 if __name__ == '__main__':
