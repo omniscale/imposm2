@@ -141,14 +141,17 @@ class PostGISDB(object):
         for mapping in mappings:
             self.create_table(mapping)
 
+    def drop_table_or_view(self, cur, name):
+        with self.savepoint(cur):
+            cur.execute('DROP TABLE "' + name + '" CASCADE')
+        with self.savepoint(cur):
+            cur.execute('DROP VIEW "' + name + '" CASCADE')
+
     def create_table(self, mapping):
         tablename = self.table_prefix + mapping.name
         cur = self.connection.cursor()
 
-        with self.savepoint(cur):
-            cur.execute('DROP TABLE "' + tablename + '" CASCADE')
-        with self.savepoint(cur):
-            cur.execute('DROP VIEW "' + tablename + '" CASCADE')
+        self.drop_table_or_view(cur, tablename)
 
         extra_fields = ''
         for n, t in mapping.fields:
@@ -370,11 +373,7 @@ class PostGISUnionView(object):
         cur = self.db.connection.cursor()
         cur.execute('BEGIN')
 
-        with self.db.savepoint(cur, raise_errors=not ignore_errors):
-            cur.execute('SELECT * FROM pg_views WHERE viewname = %s', (self.view_name, ))
-            if cur.fetchall():
-                cur.execute('DROP VIEW %s' % (self.view_name, ))
-            cur.execute(self._view_stmt())
+        self.db.drop_table_or_view(cur, self.view_name)
 
         cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
         if cur.fetchall():
@@ -421,8 +420,8 @@ class PostGISGeneralizedTable(object):
     def create(self):
         cur = self.db.connection.cursor()
         cur.execute('BEGIN')
-        with self.db.savepoint(cur):
-            cur.execute('DROP TABLE "%s" CASCADE' % (self.table_name, ))
+
+        self.db.drop_table_or_view(cur, self.table_name)
 
         cur.execute(self._stmt())
         cur.execute(self._idx_stmt())
