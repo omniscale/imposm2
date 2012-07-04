@@ -375,6 +375,9 @@ class PostGISUnionView(object):
 
         self.db.drop_table_or_view(cur, self.view_name)
 
+        with self.db.savepoint(cur, raise_errors=not ignore_errors):
+            cur.execute(self._view_stmt())
+
         cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
         if cur.fetchall():
             # drop old entry to handle changes of SRID
