@@ -73,6 +73,8 @@ def main(argv=None):
         default=False, help='show this help message and exit')
     parser.add_option('--debug', action='store_true',
         default=False, help='show debug information')
+    parser.add_option('--quiet', action='store_true',
+        default=False, help='only print progress every 60 seconds')
 
     parser.add_option('-m', '--mapping-file', dest='mapping_file',
         metavar='<file>')
@@ -198,7 +200,10 @@ def main(argv=None):
         if options.proj:
             db_conf.proj = options.proj
 
-    logger = imposm.util.ProgressLog
+    if options.quiet:
+        logger = imposm.util.QuietProgressLog
+    else:
+        logger = imposm.util.ProgressLog
 
     imposm_timer = imposm.util.Timer('imposm', logger)
 

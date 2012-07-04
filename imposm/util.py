@@ -1,11 +1,11 @@
 # Copyright 2011 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -44,7 +44,7 @@ class ParserProgress(multiprocessing.Process):
     def __init__(self):
         self.queue = multiprocessing.Queue()
         multiprocessing.Process.__init__(self)
-        
+
     def run(self):
         last_log = time.time()
         counters = {'coords': 0, 'nodes':0, 'ways':0, 'relations':0}
@@ -52,13 +52,13 @@ class ParserProgress(multiprocessing.Process):
             log_statement = self.queue.get()
             if log_statement is None:
                 break
-            
+
             log_type, incr = log_statement
             counters[log_type] += incr
             if time.time() - last_log > 0.2:
                 last_log = time.time()
                 self.print_log(counters)
-        
+
     @staticmethod
     def message(msg):
         print >>sys.stderr, "[%s] %s" % (timestamp(), msg)
@@ -73,16 +73,18 @@ class ParserProgress(multiprocessing.Process):
             int(counters['relations']/1000)
         ),
         sys.stderr.flush()
-    
+
     def log(self, log_type, incr):
         self.queue.put((log_type, incr))
-    
+
     def stop(self):
         sys.stderr.write('\n')
         sys.stderr.flush()
         self.queue.put(None)
 
 class ProgressLog(object):
+    log_every_seconds = 0.2
+
     def __init__(self, title=None, total=None):
         self.count = 0
         self.total = total
@@ -91,12 +93,12 @@ class ProgressLog(object):
         self.start_time = time.time()
         self.last_log = time.time()
         self.print_log()
-    
+
     @staticmethod
     def message(msg):
         print >>sys.stderr, "[%s] %s" % (timestamp(), msg)
         sys.stderr.flush()
-    
+
     def log(self, value=None, step=1):
         before = self.count//1000
         if value:
@@ -105,16 +107,16 @@ class ProgressLog(object):
             self.count += step
         if self.count//1000 > before:
             self.print_log()
-    
+
     def print_log(self):
-        if time.time() - self.last_log > 0.2:
+        if time.time() - self.last_log > self.log_every_seconds:
             self.last_log = time.time()
             print >>sys.stderr, "[%s] %s: %dk%s\r" % (
                 timestamp(), self.title,
                 int(self.count/1000), self._total,
             ),
             sys.stderr.flush()
-    
+
     def stop(self):
         print >>sys.stderr
         seconds = time.time() - self.start_time
@@ -123,9 +125,12 @@ class ProgressLog(object):
             timestamp(), self.title, total_time, self.count, self.count/seconds)
         sys.stderr.flush()
 
+class QuietProgressLog(ProgressLog):
+    log_every_seconds = 60
+
 def timestamp():
     return datetime.datetime.now().strftime('%H:%M:%S')
-    
+
 def format_total_time(seconds):
     h, m, s = seconds_to_hms(seconds)
     res = '%-02ds' % s
@@ -144,11 +149,11 @@ class NullLog(object):
     def log_node(self):
         pass
     node = log_node
-    
+
     def log_way(self):
         pass
     way = log_way
-    
+
     def log_relation(self):
         pass
     relation = log_relation
@@ -159,14 +164,14 @@ class MMapReader(object):
         self.m = m
         self.m.seek(0)
         self.size = size
-    
+
     def read(self, size=None):
         if size is None:
             size = self.size - self.m.tell()
         else:
             size = min(self.size - self.m.tell(), size)
         return self.m.read(size)
-        
+
     def readline(self):
         cur_pos = self.m.tell()
         if cur_pos >= self.size:
@@ -174,7 +179,7 @@ class MMapReader(object):
         nl_pos = self.m.find('\n')
         self.m.seek(cur_pos)
         return self.m.read(nl_pos-cur_pos)
-    
+
     def seek(self, n):
         self.m.seek(n)
 
@@ -185,7 +190,7 @@ class MMapPool(object):
         self.pool = [mmap.mmap(-1, mmap_size) for _ in range(n)]
         self.free_mmaps = set(range(n))
         self.free_queue = JoinableQueue()
-        
+
     def new(self):
         if not self.free_mmaps:
             self.free_mmaps.add(self.free_queue.get())
@@ -198,7 +203,7 @@ class MMapPool(object):
                 break
         mmap_idx = self.free_mmaps.pop()
         return mmap_idx, self.pool[mmap_idx]
-    
+
     def join(self):
         while len(self.free_mmaps) < self.n:
             self.free_mmaps.add(self.free_queue.get())
@@ -238,6 +243,5 @@ def estimate_records(files):
         if f.endswith('.pbf'):
             fsize *= 15 # observed pbf compression factor on osm data
         records += fsize/200
-    
+
     return int(records)
-    
