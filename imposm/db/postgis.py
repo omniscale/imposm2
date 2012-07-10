@@ -1,4 +1,4 @@
-# Copyright 2011 Omniscale (http://omniscale.com)
+# Copyright 2011-2012 Omniscale (http://omniscale.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,13 +25,23 @@ log = logging.getLogger(__name__)
 from imposm import config
 from imposm.mapping import UnionView, GeneralizedTable, Mapping
 
+unknown = object()
+
 class PostGISDB(object):
-    def __init__(self, db_conf):
+    def __init__(self, db_conf, use_geometry_columns_table=unknown):
         self.db_conf = db_conf
         self.srid = int(db_conf['proj'].split(':')[1])
+
         self._insert_stmts = {}
         self._connection = None
         self._cur = None
+
+        if use_geometry_columns_table is unknown:
+            if self.is_postgis_2():
+                use_geometry_columns_table = False
+            else:
+                use_geometry_columns_table = True
+        self.use_geometry_columns_table = use_geometry_columns_table
 
     @property
     def table_prefix(self):
@@ -39,6 +49,12 @@ class PostGISDB(object):
 
     def to_tablename(self, name):
         return self.table_prefix + name.lower()
+
+    def is_postgis_2(self):
+        cur = self.connection.cursor()
+        cur.execute('SELECT postgis_version()')
+        version_string = cur.fetchone()[0]
+        return version_string.strip()[0] == '2'
 
     @property
     def connection(self):
@@ -169,17 +185,27 @@ class PostGISDB(object):
                 %s
             );
         """ % (tablename, serial_column, extra_fields))
-        cur.execute("""
-            SELECT AddGeometryColumn ('', '%(tablename)s', 'geometry',
-                                      %(srid)s, '%(pg_geometry_type)s', 2)
-        """ % dict(tablename=tablename, srid=self.srid,
-                   pg_geometry_type=mapping.geom_type))
+
+        self.create_geometry_column(cur, tablename, mapping)
 
         self.create_field_indices(cur=cur, mapping=mapping, tablename=tablename)
 
         cur.execute("""
             CREATE INDEX "%(tablename)s_geom" ON "%(tablename)s" USING GIST (geometry)
         """ % dict(tablename=tablename))
+
+    def create_geometry_column(self, cur, tablename, mapping):
+        if self.use_geometry_columns_table:
+            cur.execute("""
+                SELECT AddGeometryColumn ('', '%(tablename)s', 'geometry',
+                                          %(srid)s, '%(pg_geometry_type)s', 2)
+            """ % dict(tablename=tablename, srid=self.srid,
+                       pg_geometry_type=mapping.geom_type))
+        else:
+            cur.execute("""
+                ALTER TABLE %(tablename)s ADD COLUMN geometry geometry(%(pg_geometry_type)s, %(srid)s);
+            """ % dict(tablename=tablename, srid=self.srid,
+                       pg_geometry_type=mapping.geom_type))
 
     def create_field_indices(self, cur, mapping, tablename):
         for n, t in mapping.fields:
@@ -254,7 +280,8 @@ class PostGISDB(object):
                     cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (idx, new_idx))
             if table_name + '_id_seq' in existing_seq:
                 cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
-            cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
+            if self.use_geometry_columns_table:
+                cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
 
         # rename new tables (osm_new_) to existing_prefix (osm_)
         for table_name in new_tables:
@@ -267,7 +294,8 @@ class PostGISDB(object):
                     cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (idx, new_idx))
             if table_name + '_id_seq' in new_seq:
                 cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
-            cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
+            if self.use_geometry_columns_table:
+                cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
 
     def remove_tables(self, prefix):
         cur = self.connection.cursor()
@@ -276,7 +304,8 @@ class PostGISDB(object):
 
         for table_name in remove_tables:
             cur.execute("DROP TABLE %s CASCADE" % (table_name, ))
-            cur.execute("DELETE FROM geometry_columns WHERE f_table_name = %s", (table_name, ))
+            if self.use_geometry_columns_table:
+                cur.execute("DELETE FROM geometry_columns WHERE f_table_name = %s", (table_name, ))
 
 
     def remove_views(self, prefix):
@@ -286,7 +315,8 @@ class PostGISDB(object):
 
         for view_name in remove_views:
             cur.execute('DROP VIEW "%s" CASCADE' % (view_name, ))
-            cur.execute("DELETE FROM geometry_columns WHERE f_table_name = %s", (view_name, ))
+            if self.use_geometry_columns_table:
+                cur.execute("DELETE FROM geometry_columns WHERE f_table_name = %s", (view_name, ))
 
 
     def create_views(self, mappings, ignore_errors=False):
@@ -321,7 +351,6 @@ class PostGISDB(object):
         cur.execute("VACUUM ANALYZE")
         self.connection.set_isolation_level(old_isolation_level)
 
-
 class PostGISUnionView(object):
     def __init__(self, db, mapping):
         self.mapping = mapping
@@ -349,6 +378,7 @@ class PostGISUnionView(object):
         return stmt
 
     def _geom_table_stmt(self):
+        assert self.db.use_geometry_columns_table
         stmt = "insert into geometry_columns values ('', 'public', '%s', 'geometry', 2, %d, 'GEOMETRY')" % (
             self.view_name, self.db.srid)
         return stmt
@@ -378,11 +408,12 @@ class PostGISUnionView(object):
         with self.db.savepoint(cur, raise_errors=not ignore_errors):
             cur.execute(self._view_stmt())
 
-        cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
-        if cur.fetchall():
-            # drop old entry to handle changes of SRID
-            cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
-        cur.execute(self._geom_table_stmt())
+        if self.db.use_geometry_columns_table:
+            cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
+            if cur.fetchall():
+                # drop old entry to handle changes of SRID
+                cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.view_name, ))
+            cur.execute(self._geom_table_stmt())
 
 
 class PostGISGeneralizedTable(object):
@@ -396,6 +427,7 @@ class PostGISGeneralizedTable(object):
             self.table_name, self.table_name)
 
     def _geom_table_stmt(self):
+        assert self.db.use_geometry_columns_table
         stmt = "insert into geometry_columns values ('', 'public', '%s', 'geometry', 2, %d, 'GEOMETRY')" % (
             self.table_name, self.db.srid)
         return stmt
@@ -429,11 +461,12 @@ class PostGISGeneralizedTable(object):
         cur.execute(self._stmt())
         cur.execute(self._idx_stmt())
 
-        cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
-        if cur.fetchall():
-            # drop old entry to handle changes of SRID
-            cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
-        cur.execute(self._geom_table_stmt())
+        if self.db.use_geometry_columns_table:
+            cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
+            if cur.fetchall():
+                # drop old entry to handle changes of SRID
+                cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
+            cur.execute(self._geom_table_stmt())
 
 class TrigramIndex(object):
     pass
