@@ -202,8 +202,10 @@ def main(argv=None):
 
     if options.quiet:
         logger = imposm.util.QuietProgressLog
+        logger_parser = imposm.util.QuietParserProgress
     else:
         logger = imposm.util.ProgressLog
+        logger_parser = imposm.util.ParserProgress
 
     imposm_timer = imposm.util.Timer('imposm', logger)
 
@@ -231,7 +233,7 @@ def main(argv=None):
             sys.exit(2)
 
         reader = ImposmReader(tag_mapping, cache=cache, merge=options.merge_cache,
-            pool_size=options.concurrency, logger=logger)
+            pool_size=options.concurrency, logger=logger_parser)
         reader.estimated_coords = imposm.util.estimate_records(args)
         for arg in args:
             logger.message('## reading %s' % arg)

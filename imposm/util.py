@@ -41,6 +41,8 @@ class Timer(object):
         self.logger.message('%s took %s' % (self.title, format_total_time(seconds)))
 
 class ParserProgress(multiprocessing.Process):
+    log_every_seconds = 0.2
+
     def __init__(self):
         self.queue = multiprocessing.Queue()
         multiprocessing.Process.__init__(self)
@@ -55,7 +57,7 @@ class ParserProgress(multiprocessing.Process):
 
             log_type, incr = log_statement
             counters[log_type] += incr
-            if time.time() - last_log > 0.2:
+            if time.time() - last_log > self.log_every_seconds:
                 last_log = time.time()
                 self.print_log(counters)
 
@@ -81,6 +83,9 @@ class ParserProgress(multiprocessing.Process):
         sys.stderr.write('\n')
         sys.stderr.flush()
         self.queue.put(None)
+
+class QuietParserProgress(ParserProgress):
+    log_every_seconds = 60
 
 class ProgressLog(object):
     log_every_seconds = 0.2
