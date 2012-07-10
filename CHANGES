@@ -1,6 +1,17 @@
 Changelog
 ---------
 
+2.x.x
+~~~~~
+
+- PostGIS 2 support
+- added --quiet option that only logs progress once per minute
+- add StringIndex and Index mappings for PostgreSQL
+- always drop tables _and_ views with same name before creating new
+  table/view. allows to change mappings from views to tables and
+  vice versa.
+- internal refactoring to make support for non SQL databases easier
+
 2.4.0 2012-03-30
 ~~~~~~~~~~~~~~~~
 
@@ -39,7 +50,7 @@ Changelog
 - update SRS in GeneralizedTables and UnionTables
 - new waterareas_gen0|1 in default style
 - new area field in landusages table
-- new meter_to_mapunit function to use same mapping 
+- new meter_to_mapunit function to use same mapping
   for EPSG:4326 and projected SRS
 
 2.2.0 2011-06-01
