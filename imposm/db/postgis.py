@@ -28,6 +28,8 @@ from imposm.mapping import UnionView, GeneralizedTable, Mapping
 unknown = object()
 
 class PostGISDB(object):
+    insert_data_format = 'tuple'
+
     def __init__(self, db_conf, use_geometry_columns_table=unknown):
         self.db_conf = db_conf
         self.srid = int(db_conf['proj'].split(':')[1])
