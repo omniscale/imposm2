@@ -1,11 +1,11 @@
 # Copyright 2011 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -42,13 +42,15 @@ def setup_module():
     os.chdir(temp_dir)
     test_osm_file = os.path.join(os.path.dirname(__file__), 'test.out.osm')
     with capture_out():
-        imposm.app.main(['--read', test_osm_file, '--write', '-d', db_conf.db, '--host', db_conf.host,
-            '--proj', db_conf.proj, '--table-prefix', db_conf.prefix])
+        print db_conf.password
+        imposm.app.main(['--read', test_osm_file, '--write',
+            '--proj', db_conf.proj, '--table-prefix', db_conf.prefix,
+            '--connect', 'postgis://%(user)s:%(password)s@%(host)s:%(port)s/%(db)s' % db_conf])
 
 class TestImported(object):
     def __init__(self):
         self.db = imposm.db.config.DB(db_conf)
-    
+
     def test_point(self):
         cur = self.db.cur
         cur.execute('select osm_id, name, ST_AsText(geometry) from %splaces where osm_id = 1' % db_conf.prefix)
@@ -86,10 +88,10 @@ def roundwkt(wkt):
 def teardown_module():
     if old_cwd:
         os.chdir(old_cwd)
-    
+
     if temp_dir and os.path.exists(temp_dir):
         shutil.rmtree(temp_dir)
-    
+
 
 @contextmanager
 def capture_out():
@@ -105,4 +107,3 @@ def capture_out():
     finally:
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-    
