@@ -16,7 +16,7 @@ Imposm comes with a little tool that creates all command required to create a ne
 
 You can save the output of ``imposm-psqldb`` and use it as a shell script for the ``postgres`` user::
 
-  imposm-psqldb > create-db.sh
+  imposm-psqldb --postgis-version 2.0 --pg-version 9.1 > create-db.sh
   sudo su postgres
   vim ./create-db.sh # cross check if all path are set
   sh ./create-db.sh
