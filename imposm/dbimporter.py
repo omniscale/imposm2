@@ -99,11 +99,26 @@ class TupleBasedImporter(ImporterProcess):
                 osm_elem = OSMElem(osm_id, geom, type, tags)
                 try:
                     m.filter(osm_elem)
-                    m.build_geom(osm_elem)
+                    convert = m.build_geom(osm_elem)
+                    # calc extra args first, then convert if needed    
                     extra_args = m.field_values(osm_elem)
+                    if convert:
+                        # TODO right areas?!
+                        ## now we can calculate the values of each sub geometry
+                        ## this wont output right geometries and i ve no clue why
+                        # for geom in osm_elem.geom.geoms:
+                        #     osm_elem.geom = geom
+                        #     extra_args = m.field_values(osm_elem)
+                        #     self.db_queue.put((m, osm_id, osm_elem, extra_args))
+                    # else:
+                    #     extra_args = m.field_values(osm_elem)
+                    #     self.db_queue.put((m, osm_id, osm_elem, extra_args))
+
+                        # This computes the right geometries but the area is wrong
+                        osm_elem.geom = list(osm_elem.geom.geoms)
                     self.db_queue.put((m, osm_id, osm_elem, extra_args))
                     inserted = True
-                except DropElem:
+                except DropElem, e:
                     pass
         return inserted
 
@@ -148,14 +163,14 @@ class DictBasedImporter(ImporterProcess):
                     obj['mapping_names'].append(m.name)
                 else:
                     try:
-                        m.build_geom(osm_elem)
+                        convert = m.build_geom(osm_elem)
                     except DropElem:
                         continue
                     obj = {}
                     obj['fields'] = m.field_dict(osm_elem)
                     obj['fields'][type[0]] = type[1]
                     obj['osm_id'] = osm_id
-                    obj['geometry'] = osm_elem.geom
+                    obj['geometry'] = list(osm_elem.geom.geoms) if convert else osm_elem.geom
                     obj['mapping_names'] = [m.name]
                     osm_objects[m.geom_type] = obj
 
