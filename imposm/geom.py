@@ -15,11 +15,13 @@
 from __future__ import division
 
 import math
-
+import codecs
+import shapely.geometry
 import shapely.geos
 from shapely.geometry.base import BaseGeometry
 from shapely import geometry
 from shapely import wkt
+from shapely.topology import TopologicalError
 
 from imposm import config
 
@@ -181,3 +183,72 @@ class LineStringBuilder(GeomBuilder):
         else:
             raise InvalidGeometryError('invalid geometry for %s: %s, %s' %
                                        (osm_elem.osm_id, geom, osm_elem.coords))
+
+def load_wkt_polygon(wkt_files):
+    """
+    Loads WKT polygons from one or more text files.
+    
+    Returns the bbox and a Shapely MultiPolygon with
+    the loaded geometries.
+    """
+    polygons = []
+    if isinstance(wkt_files, basestring):
+        wkt_files = [wkt_files]
+    
+    for geom_file in wkt_files:
+        # open with utf-8-sig encoding to get rid of UTF8 BOM from MS Notepad
+        with codecs.open(geom_file, encoding='utf-8-sig') as f:
+            polygons.extend(load_polygon_lines(f, source=wkt_files))
+    
+    mp = shapely.geometry.MultiPolygon(polygons)
+    # TODO check epsg code?
+    return LimitPolygonGeometry(mp)
+
+def load_polygon_lines(line_iter, source='<string>'):
+    polygons = []
+    for line in line_iter:
+        geom = shapely.wkt.loads(line)
+        if geom.type == 'Polygon':
+            polygons.append(geom)
+        elif geom.type == 'MultiPolygon':
+            for p in geom:
+                polygons.append(p)
+        else:
+            log_config.warn('ignoring non-polygon geometry (%s) from %s',
+                geom.type, source)
+
+    return polygons
+
+class EmtpyGeometryError(Exception):
+    pass
+
+class LimitPolygonGeometry(object):
+    def __init__(self, shapely_geom):
+        self._geom = shapely_geom
+        self._prepared_geom = None
+        self._prepared_counter = 0
+        self._prepared_max = 10000
+
+    @property
+    def geom(self):
+        # GEOS internal data structure for prepared geometries grows over time,
+        # recreate to limit memory consumption
+        if not self._prepared_geom or self._prepared_counter > self._prepared_max:
+            self._prepared_geom = shapely.prepared.prep(self._geom)
+            self._prepared_counter = 0
+        self._prepared_counter += 1
+        return self._prepared_geom
+
+    def intersection(self, other_geometry):
+        if self.geom.intersects(other_geometry):
+            if self.geom.contains_properly(other_geometry):
+                return other_geometry, False
+            try:
+                # can not use intersection with prepared geom...
+                geom = self._geom.intersection(other_geometry)
+                if not geom.is_empty:
+                    return geom, geom.geom_type != other_geometry.geom_type
+            except TopologicalError:
+                    pass
+        raise EmtpyGeometryError('No intersection or empty geometry')
+
