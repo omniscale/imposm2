@@ -90,6 +90,7 @@ class Mapping(object):
         self.name = name
         self.mapping = mapping
         self.fields = fields or tuple(self.fields)
+        self.limit_to_polygon = None
         if with_type_field is not None:
             # allow subclass to define other default by setting it as class variable
             self.with_type_field = with_type_field
@@ -142,10 +143,16 @@ class Mapping(object):
     
     def build_geom(self, osm_elem):
         try:
+            convert = False
             geom = self.geom_builder.build_checked_geom(osm_elem)
+            if self.limit_to_polygon is not None:
+                geom, convert = self.limit_to_polygon.intersection(geom)
             osm_elem.geom = geom
+            return convert
         except imposm.geom.InvalidGeometryError, ex:
             raise DropElem('invalid geometry: %s' % (ex, ))
+        except imposm.geom.EmtpyGeometryError, ex:
+            raise DropElem(ex)
     
     def field_values(self, osm_elem):
         return [t.value(osm_elem.tags.get(n), osm_elem) for n, t in self.fields]
@@ -165,8 +172,9 @@ class Mapping(object):
 
 
 class TagMapper(object):
-    def __init__(self, mappings):
+    def __init__(self, mappings, limit_to=None):
         self.mappings = mappings
+        self.limit_to_polygon = limit_to
         self._init_map()
 
     def _init_map(self):
@@ -196,6 +204,9 @@ class TagMapper(object):
                 for type in types:
                     tags.setdefault(tag, set()).add(type)
                     add_to[tag].setdefault(type, []).append(mapping)
+
+            # add limit_to polygon to each mapping
+            mapping.limit_to_polygon = self.limit_to_polygon
 
     def for_nodes(self, tags):
         return self._mapping_for_tags(self.point_mappings, tags)
