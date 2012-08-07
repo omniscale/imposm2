@@ -44,6 +44,7 @@ from imposm.db.config import DB
 from imposm.cache import OSMCache
 from imposm.reader import ImposmReader
 from imposm.mapping import TagMapper
+from imposm.geom import load_wkt_polygon
 
 try:
     n_cpu = multiprocessing.cpu_count()
@@ -129,6 +130,9 @@ def main(argv=None):
     parser.add_option('-n', '--dry-run', dest='dry_run', default=False,
         action='store_true')
 
+
+    parser.add_option('--limit-to', dest='limit_to', metavar='WKT-Polygon in EPSG:4326', help='reshape the imported data and import only the features, which are within this polygon')
+
     (options, args) = parser.parse_args(argv)
 
     setup_logging(debug=options.debug)
@@ -158,10 +162,13 @@ def main(argv=None):
         print 'loading %s as mapping' % options.mapping_file
         mapping_file = options.mapping_file
 
+    # limit import to given polygon
+    polygon = load_wkt_polygon(options.limit_to) if options.limit_to else None
+
     mappings = {}
     execfile(mapping_file, mappings)
     tag_mapping = TagMapper([m for n, m in mappings.iteritems()
-        if isinstance(m, imposm.mapping.Mapping)])
+        if isinstance(m, imposm.mapping.Mapping)], limit_to=polygon)
 
     if 'IMPOSM_MULTIPOLYGON_REPORT' in os.environ:
         imposm.config.imposm_multipolygon_report = float(os.environ['IMPOSM_MULTIPOLYGON_REPORT'])
