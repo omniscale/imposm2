@@ -208,6 +208,8 @@ def load_wkt_polygon(wkt_files):
 def load_polygon_lines(line_iter, source='<string>'):
     polygons = []
     for line in line_iter:
+        if not line.strip():
+            continue
         geom = shapely.wkt.loads(line)
         if geom.type == 'Polygon':
             polygons.append(geom)
