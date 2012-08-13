@@ -214,7 +214,7 @@ def load_polygon_lines(line_iter, source='<string>'):
             for p in geom:
                 polygons.append(p)
         else:
-            log_config.warn('ignoring non-polygon geometry (%s) from %s',
+            log.warn('ignoring non-polygon geometry (%s) from %s',
                 geom.type, source)
 
     return polygons
