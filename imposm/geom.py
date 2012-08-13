@@ -1,4 +1,4 @@
-# Copyright 2011 Omniscale (http://omniscale.com)
+# Copyright 2011, 2012 Omniscale (http://omniscale.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -244,15 +244,38 @@ class LimitPolygonGeometry(object):
         if self.geom.contains_properly(geom):
             # no need to limit contained geometries
             return geom
+
+        new_geom = None
         if self.geom.intersects(geom):
             try:
                 # can not use intersection with prepared geom
                 new_geom = self._geom.intersection(geom)
-                if not new_geom.is_empty:
-                    if new_geom.type == 'MultiLineString':
-                        return list(new_geom.geoms)
-                    return new_geom
             except TopologicalError:
                     pass
-        raise EmtpyGeometryError('No intersection or empty geometry')
 
+        if not new_geom or new_geom.is_empty:
+            raise EmtpyGeometryError('No intersection or empty geometry')
+
+        # we can't return results where the geometry type missmatches,
+        # because we can't insert points into linestring tables for example
+
+        if new_geom.type == geom.type:
+            # same type is fine
+            return new_geom
+
+        if new_geom.type == 'MultiPolygon' and geom.type == 'Polygon':
+            # polygon mappings should also support multipolygons
+            return new_geom
+
+        if hasattr(new_geom, 'geoms'):
+            # geometry collection? return list of geometries
+            geoms = []
+            for part in new_geom.geoms:
+                # only parts with same type
+                if part.type == geom.type:
+                    geoms.append(part)
+
+            if geoms:
+                return geoms
+
+        raise EmtpyGeometryError('No intersection or empty geometry')
