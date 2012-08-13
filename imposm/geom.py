@@ -1,11 +1,11 @@
 # Copyright 2011 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,6 +18,7 @@ import math
 import codecs
 import shapely.geometry
 import shapely.geos
+import shapely.prepared
 from shapely.geometry.base import BaseGeometry
 from shapely import geometry
 from shapely import wkt
@@ -44,12 +45,12 @@ SHAPELY_SUPPORTS_BUFFER = shapely.geos.geos_capi_version >= (1, 6, 0)
 def validate_and_simplify(geom, meter_units=False):
     if SHAPELY_SUPPORTS_BUFFER:
         try:
-            # buffer(0) is nearly fast as is_valid 
+            # buffer(0) is nearly fast as is_valid
             return geom.buffer(0)
         except ValueError:
             # shapely raises ValueError if buffer(0) result is empty
             raise InvalidGeometryError('geometry is empty')
-    
+
     orig_geom = geom
     if not geom.is_valid:
         tolerance = TOLERANCE_METERS if meter_units else TOLERANCE_DEEGREES
@@ -79,8 +80,8 @@ class GeomBuilder(object):
         if geom_wkt is None or geom is None:
             # unable to build valid wkt (non closed polygon, etc)
             raise InvalidGeometryError()
-        return geom    
-    
+        return geom
+
     def check_geom_type(self, geom):
         return
 
@@ -98,23 +99,23 @@ class GeomBuilder(object):
         if geom is None:
             # unable to build valid wkt (non closed polygon, etc)
             raise InvalidGeometryError()
-        return geom    
+        return geom
 
 class PointBuilder(GeomBuilder):
     def to_wkt(self, data):
         if len(data) != 2:
             return None
         return 'POINT(%f %f)' % data
-    
+
     def to_geom(self, data):
         if len(data) != 2:
             return None
         return geometry.Point(*data)
-    
+
     def check_geom_type(self, geom):
         if geom.type != 'Point':
             raise InvalidGeometryError('expected Point, got %s' % geom.type)
-    
+
     def build_checked_geom(self, osm_elem, validate=False):
         geom = self.build_geom(osm_elem)
         if not validate or geom.is_valid:
@@ -128,16 +129,16 @@ class PolygonBuilder(GeomBuilder):
         if len(data) >= 4 and data[0] == data[-1]:
             return 'POLYGON((' + ', '.join('%f %f' % p for p in data) + '))'
         return None
-    
+
     def to_geom(self, data):
         if len(data) >= 4 and data[0] == data[-1]:
             return geometry.Polygon(data)
         return None
-    
+
     def check_geom_type(self, geom):
         if geom.type not in ('Polygon', 'MultiPolygon'):
             raise InvalidGeometryError('expected Polygon or MultiPolygon, got %s' % geom.type)
-    
+
     def build_checked_geom(self, osm_elem, validate=False):
         geom = self.build_geom(osm_elem)
         if not validate:
@@ -187,19 +188,19 @@ class LineStringBuilder(GeomBuilder):
 def load_wkt_polygon(wkt_files):
     """
     Loads WKT polygons from one or more text files.
-    
+
     Returns the bbox and a Shapely MultiPolygon with
     the loaded geometries.
     """
     polygons = []
     if isinstance(wkt_files, basestring):
         wkt_files = [wkt_files]
-    
+
     for geom_file in wkt_files:
         # open with utf-8-sig encoding to get rid of UTF8 BOM from MS Notepad
         with codecs.open(geom_file, encoding='utf-8-sig') as f:
             polygons.extend(load_polygon_lines(f, source=wkt_files))
-    
+
     mp = shapely.geometry.MultiPolygon(polygons)
     # TODO check epsg code?
     return LimitPolygonGeometry(mp)
@@ -239,15 +240,18 @@ class LimitPolygonGeometry(object):
         self._prepared_counter += 1
         return self._prepared_geom
 
-    def intersection(self, other_geometry):
-        if self.geom.intersects(other_geometry):
-            if self.geom.contains_properly(other_geometry):
-                return other_geometry, False
+    def intersection(self, geom):
+        if self.geom.contains_properly(geom):
+            # no need to limit contained geometries
+            return geom
+        if self.geom.intersects(geom):
             try:
-                # can not use intersection with prepared geom...
-                geom = self._geom.intersection(other_geometry)
-                if not geom.is_empty:
-                    return geom, geom.geom_type != other_geometry.geom_type
+                # can not use intersection with prepared geom
+                new_geom = self._geom.intersection(geom)
+                if not new_geom.is_empty:
+                    if new_geom.type == 'MultiLineString':
+                        return list(new_geom.geoms)
+                    return new_geom
             except TopologicalError:
                     pass
         raise EmtpyGeometryError('No intersection or empty geometry')

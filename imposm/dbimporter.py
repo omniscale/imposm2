@@ -1,11 +1,11 @@
 # Copyright 2011, 2012 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,7 +16,7 @@ from collections import defaultdict
 from multiprocessing import Process
 
 import threading
-from Queue import Queue 
+from Queue import Queue
 
 from imposm.base import OSMElem
 from imposm.geom import IncompletePolygonError
@@ -99,26 +99,11 @@ class TupleBasedImporter(ImporterProcess):
                 osm_elem = OSMElem(osm_id, geom, type, tags)
                 try:
                     m.filter(osm_elem)
-                    convert = m.build_geom(osm_elem)
-                    # calc extra args first, then convert if needed    
+                    m.build_geom(osm_elem)
                     extra_args = m.field_values(osm_elem)
-                    if convert:
-                        # TODO right areas?!
-                        ## now we can calculate the values of each sub geometry
-                        ## this wont output right geometries and i ve no clue why
-                        # for geom in osm_elem.geom.geoms:
-                        #     osm_elem.geom = geom
-                        #     extra_args = m.field_values(osm_elem)
-                        #     self.db_queue.put((m, osm_id, osm_elem, extra_args))
-                    # else:
-                    #     extra_args = m.field_values(osm_elem)
-                    #     self.db_queue.put((m, osm_id, osm_elem, extra_args))
-
-                        # This computes the right geometries but the area is wrong
-                        osm_elem.geom = list(osm_elem.geom.geoms)
                     self.db_queue.put((m, osm_id, osm_elem, extra_args))
                     inserted = True
-                except DropElem, e:
+                except DropElem:
                     pass
         return inserted
 
@@ -163,14 +148,14 @@ class DictBasedImporter(ImporterProcess):
                     obj['mapping_names'].append(m.name)
                 else:
                     try:
-                        convert = m.build_geom(osm_elem)
+                        m.build_geom(osm_elem)
                     except DropElem:
                         continue
                     obj = {}
                     obj['fields'] = m.field_dict(osm_elem)
                     obj['fields'][type[0]] = type[1]
                     obj['osm_id'] = osm_id
-                    obj['geometry'] = list(osm_elem.geom.geoms) if convert else osm_elem.geom
+                    obj['geometry'] = osm_elem.geom
                     obj['mapping_names'] = [m.name]
                     osm_objects[m.geom_type] = obj
 
@@ -191,12 +176,12 @@ class DictBasedImporter(ImporterProcess):
 class NodeProcess(ImporterProcess):
     name = 'node'
 
-    def doit(self):        
+    def doit(self):
         while True:
             nodes = self.in_queue.get()
             if nodes is None:
                 break
-            
+
             for node in nodes:
                 mappings = self.mapper.for_nodes(node.tags)
                 if not mappings:
@@ -236,7 +221,7 @@ class WayProcess(ImporterProcess):
                         skip_id = inserted_ways.next()
                     except StopIteration:
                         skip_id = 2**64
-                
+
                 if skip_id == way.osm_id:
                     continue
 
@@ -273,7 +258,7 @@ class RelationProcess(ImporterProcess):
             relations = self.in_queue.get()
             if relations is None:
                 break
-            
+
             for relation in relations:
                 builder = RelationBuilder(relation, ways_cache, coords_cache)
                 try:
