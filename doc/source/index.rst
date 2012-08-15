@@ -58,9 +58,9 @@ For commercial support `contact Omniscale <http://omniscale.com/contact>`_.
 Development
 -----------
 
-The source code is available at: https://bitbucket.org/olt/imposm/
+The source code is available at: https://github.com/omniscale/imposm/
 
-You can report any issues at: https://bitbucket.org/olt/imposm/issues
+You can report any issues at: https://github.com/omniscale/imposm/issues
 
 Contents
 --------
