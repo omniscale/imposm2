@@ -277,7 +277,7 @@ class PostGISDB(object):
             cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
 
             for idx in existing_indexes:
-                if idx in (table_name + '_geom', table_name + '_pkey') or idx.startswith(table_name + '_trgm_idx_'):
+                if idx in (table_name + '_geom', table_name + '_pkey') or idx.startswith(table_name + '_trgm_idx_') or idx.startswith(table_name + '_idx_'):
                     new_idx = idx.replace(table_name, rename_to, 1)
                     cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (idx, new_idx))
             if table_name + '_id_seq' in existing_seq:
@@ -291,7 +291,7 @@ class PostGISDB(object):
             cur.execute('ALTER TABLE "%s" RENAME TO "%s"' % (table_name, rename_to))
 
             for idx in new_indexes:
-                if idx in (table_name + '_geom', table_name + '_pkey') or idx.startswith(table_name + '_trgm_idx_'):
+                if idx in (table_name + '_geom', table_name + '_pkey') or idx.startswith(table_name + '_trgm_idx_') or idx.startswith(table_name + '_idx_'):
                     new_idx = idx.replace(table_name, rename_to, 1)
                     cur.execute('ALTER INDEX "%s" RENAME TO "%s"' % (idx, new_idx))
             if table_name + '_id_seq' in new_seq:
