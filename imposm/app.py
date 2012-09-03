@@ -126,12 +126,11 @@ def main(argv=None):
     parser.add_option('--remove-backup-tables', dest='remove_backup_tables', default=False,
         action='store_true')
 
-
     parser.add_option('-n', '--dry-run', dest='dry_run', default=False,
         action='store_true')
 
-
-    parser.add_option('--limit-to', dest='limit_to', metavar='WKT-Polygon in EPSG:4326', help='reshape the imported data and import only the features, which are within this polygon')
+    parser.add_option('--limit-to', dest='limit_to', metavar='WKT file',
+        help='limit imported geometries to WKT (multi)polygons in EPSG:4326')
 
     (options, args) = parser.parse_args(argv)
 
@@ -148,6 +147,13 @@ def main(argv=None):
         parser.print_help()
         sys.exit(1)
 
+    if options.quiet:
+        logger = imposm.util.QuietProgressLog
+        logger_parser = imposm.util.QuietParserProgress
+    else:
+        logger = imposm.util.ProgressLog
+        logger_parser = imposm.util.ParserProgress
+
     if options.proj:
         if ':' not in options.proj:
             print 'ERROR: --proj should be in EPSG:00000 format'
@@ -162,8 +168,12 @@ def main(argv=None):
         print 'loading %s as mapping' % options.mapping_file
         mapping_file = options.mapping_file
 
-    # limit import to given polygon
-    polygon = load_wkt_polygon(options.limit_to) if options.limit_to else None
+    polygon = None
+    if options.limit_to:
+        logger.message('## reading --limit-to %s' % options.limit_to)
+        polygon_timer = imposm.util.Timer('reading', logger)
+        polygon = load_wkt_polygon(options.limit_to)
+        polygon_timer.stop()
 
     mappings = {}
     execfile(mapping_file, mappings)
@@ -206,13 +216,6 @@ def main(argv=None):
 
         if options.proj:
             db_conf.proj = options.proj
-
-    if options.quiet:
-        logger = imposm.util.QuietProgressLog
-        logger_parser = imposm.util.QuietParserProgress
-    else:
-        logger = imposm.util.ProgressLog
-        logger_parser = imposm.util.ParserProgress
 
     imposm_timer = imposm.util.Timer('imposm', logger)
 

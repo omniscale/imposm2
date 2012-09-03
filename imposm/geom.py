@@ -22,7 +22,13 @@ import shapely.prepared
 from shapely.geometry.base import BaseGeometry
 from shapely import geometry
 from shapely import wkt
+from shapely.ops import cascaded_union, linemerge
 from shapely.topology import TopologicalError
+
+try:
+    import rtree
+except ImportError:
+    rtree = None
 
 from imposm import config
 
@@ -185,6 +191,57 @@ class LineStringBuilder(GeomBuilder):
             raise InvalidGeometryError('invalid geometry for %s: %s, %s' %
                                        (osm_elem.osm_id, geom, osm_elem.coords))
 
+def tile_bbox(bbox, grid_width):
+    """
+    Tile bbox into multiple sub-boxes, each of `grid_width` size.
+
+    >>> list(tile_bbox((-1, 1, 0.49, 1.51), 0.5)) #doctest: +NORMALIZE_WHITESPACE
+    [(-1.0, 1.0, -0.5, 1.5),
+     (-1.0, 1.5, -0.5, 2.0),
+     (-0.5, 1.0, 0.0, 1.5),
+     (-0.5, 1.5, 0.0, 2.0),
+     (0.0, 1.0, 0.5, 1.5),
+     (0.0, 1.5, 0.5, 2.0)]
+    """
+    min_x = math.floor(bbox[0]/grid_width) * grid_width
+    min_y = math.floor(bbox[1]/grid_width) * grid_width
+    max_x = math.ceil(bbox[2]/grid_width) * grid_width
+    max_y = math.ceil(bbox[3]/grid_width) * grid_width
+
+    x_steps = (max_x - min_x) / grid_width
+    y_steps = (max_y - min_y) / grid_width
+
+    for x in xrange(int(x_steps)):
+        for y in xrange(int(y_steps)):
+            yield (
+                min_x + x * grid_width,
+                min_y + y * grid_width,
+                min_x + (x + 1) * grid_width,
+                min_y + (y + 1)* grid_width,
+            )
+
+def split_polygon_at_grid(geom, grid_width=0.1):
+    """
+    >>> p = list(split_polygon_at_grid(geometry.box(-0.5, 1, 0.2, 2), 1))
+    >>> p[0].contains(geometry.box(-0.5, 1, 0, 2))
+    True
+    >>> p[0].area == geometry.box(-0.5, 1, 0, 2).area
+    True
+    >>> p[1].contains(geometry.box(0, 1, 0.2, 2))
+    True
+    >>> p[1].area == geometry.box(0, 1, 0.2, 2).area
+    True
+    """
+    if not geom.is_valid:
+        geom = geom.buffer(0)
+    for split_box in tile_bbox(geom.bounds, grid_width):
+        try:
+            polygon_part = geom.intersection(shapely.geometry.box(*split_box))
+        except TopologicalError:
+            continue
+        if not polygon_part.is_empty:
+            yield polygon_part
+
 def load_wkt_polygon(wkt_files):
     """
     Loads WKT polygons from one or more text files.
@@ -201,9 +258,12 @@ def load_wkt_polygon(wkt_files):
         with codecs.open(geom_file, encoding='utf-8-sig') as f:
             polygons.extend(load_polygon_lines(f, source=wkt_files))
 
-    mp = shapely.geometry.MultiPolygon(polygons)
-    # TODO check epsg code?
-    return LimitPolygonGeometry(mp)
+    if rtree:
+        return LimitRTreeGeometry(polygons)
+    else:
+        log.info('You should install RTree for large --limit-to polygons')
+        mp = shapely.geometry.MultiPolygon(polygons)
+        return LimitPolygonGeometry(mp)
 
 def load_polygon_lines(line_iter, source='<string>'):
     polygons = []
@@ -230,13 +290,14 @@ class LimitPolygonGeometry(object):
         self._geom = shapely_geom
         self._prepared_geom = None
         self._prepared_counter = 0
-        self._prepared_max = 10000
+        self._prepared_max = 100000
 
     @property
     def geom(self):
         # GEOS internal data structure for prepared geometries grows over time,
         # recreate to limit memory consumption
         if not self._prepared_geom or self._prepared_counter > self._prepared_max:
+            print 'create prepared'
             self._prepared_geom = shapely.prepared.prep(self._geom)
             self._prepared_counter = 0
         self._prepared_counter += 1
@@ -253,31 +314,116 @@ class LimitPolygonGeometry(object):
                 # can not use intersection with prepared geom
                 new_geom = self._geom.intersection(geom)
             except TopologicalError:
-                    pass
+                pass
 
         if not new_geom or new_geom.is_empty:
             raise EmtpyGeometryError('No intersection or empty geometry')
 
-        # we can't return results where the geometry type missmatches,
-        # because we can't insert points into linestring tables for example
-
-        if new_geom.type == geom.type:
-            # same type is fine
+        new_geom = filter_geometry_by_type(new_geom, geom.type)
+        if new_geom:
             return new_geom
-
-        if new_geom.type == 'MultiPolygon' and geom.type == 'Polygon':
-            # polygon mappings should also support multipolygons
-            return new_geom
-
-        if hasattr(new_geom, 'geoms'):
-            # geometry collection? return list of geometries
-            geoms = []
-            for part in new_geom.geoms:
-                # only parts with same type
-                if part.type == geom.type:
-                    geoms.append(part)
-
-            if geoms:
-                return geoms
 
         raise EmtpyGeometryError('No intersection or empty geometry')
+
+def filter_geometry_by_type(geometry, geom_type):
+    """
+    Filter (multi)geometry for compatible `geom_type`,
+    because we can't insert points into linestring tables for example
+    """
+    if geometry.type == geom_type:
+        # same type is fine
+        return geometry
+
+    if geometry.type == 'MultiPolygon' and geom_type == 'Polygon':
+        # polygon mappings should also support multipolygons
+        return geometry
+
+    if hasattr(geometry, 'geoms'):
+        # GeometryCollection or MultiLineString? return list of geometries
+        geoms = []
+        for part in geometry.geoms:
+            # only parts with same type
+            if part.type == geom_type:
+                geoms.append(part)
+
+        if geoms:
+            return geoms
+
+    return None
+
+def flatten_polygons(polygons):
+    for polygon in polygons:
+        if polygon.type == 'MultiPolygon':
+            for p in polygon.geoms:
+                yield p
+        else:
+            yield polygon
+
+def flatten_linestrings(linestrings):
+    for linestring in linestrings:
+        if linestring.type == 'MultiLineString':
+            for ls in linestring.geoms:
+                yield ls
+        else:
+            yield linestring
+
+class LimitRTreeGeometry(object):
+    def __init__(self, polygons):
+        index = rtree.index.Index()
+        sub_polygons = []
+        part_idx = 0
+        for polygon in polygons:
+            for part in split_polygon_at_grid(polygon):
+                sub_polygons.append(part)
+                index.insert(part_idx, part.bounds)
+                part_idx += 1
+
+        self.polygons = sub_polygons
+        self.index = index
+
+    def intersection(self, geom):
+        intersection_ids = list(self.index.intersection(geom.bounds))
+
+        if not intersection_ids:
+            raise EmtpyGeometryError('No intersection or empty geometry')
+
+        intersections = []
+        for i in intersection_ids:
+
+            polygon = self.polygons[i]
+
+            if polygon.contains(geom):
+                return geom
+
+            if polygon.intersects(geom):
+                try:
+                    new_geom_part = polygon.intersection(geom)
+                    new_geom_part = filter_geometry_by_type(new_geom_part, geom.type)
+                    if new_geom_part:
+                        if len(intersection_ids) == 1:
+                            return new_geom_part
+
+                        if isinstance(new_geom_part, list):
+                            intersections.extend(new_geom_part)
+                        else:
+                            intersections.append(new_geom_part)
+                except TopologicalError:
+                        pass
+
+        if not intersections:
+            raise EmtpyGeometryError('No intersection or empty geometry')
+
+        # intersections from multiple sub-polygons
+        # try to merge them back to a single geometry
+        if geom.type.endswith('Polygon'):
+            union = cascaded_union(list(flatten_polygons(intersections)))
+        elif geom.type.endswith('LineString'):
+            union = linemerge(list(flatten_linestrings(intersections)))
+            if union.type == 'MultiLineString':
+                union = list(union.geoms)
+        elif geom.type == 'Point':
+            union = intersections[0]
+        else:
+            log.warn('unexpexted geometry type %s', geom.type)
+            raise EmtpyGeometryError()
+        return union
