@@ -44,7 +44,7 @@ from imposm.db.config import DB
 from imposm.cache import OSMCache
 from imposm.reader import ImposmReader
 from imposm.mapping import TagMapper
-from imposm.geom import load_wkt_polygon
+from imposm.geom import load_geom
 
 try:
     n_cpu = multiprocessing.cpu_count()
@@ -172,8 +172,11 @@ def main(argv=None):
     if options.limit_to:
         logger.message('## reading --limit-to %s' % options.limit_to)
         polygon_timer = imposm.util.Timer('reading', logger)
-        polygon = load_wkt_polygon(options.limit_to)
+        polygon = load_geom(options.limit_to)
         polygon_timer.stop()
+        if polygon is None:
+            print 'ERROR: No valid polygon/multipolygon found'
+            sys.exit(1)
 
     mappings = {}
     execfile(mapping_file, mappings)

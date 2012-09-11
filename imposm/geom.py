@@ -16,6 +16,7 @@ from __future__ import division
 
 import math
 import codecs
+import os
 import shapely.geometry
 import shapely.geos
 import shapely.prepared
@@ -31,6 +32,7 @@ except ImportError:
     rtree = None
 
 from imposm import config
+from imposm.util.geom import load_polygons, load_datasource, build_multipolygon
 
 import logging
 log = logging.getLogger(__name__)
@@ -242,46 +244,28 @@ def split_polygon_at_grid(geom, grid_width=0.1):
         if not polygon_part.is_empty:
             yield polygon_part
 
-def load_wkt_polygon(wkt_files):
-    """
-    Loads WKT polygons from one or more text files.
+def load_geom(source):
+    geom = None
+    # source is a wkt file
+    if os.path.exists(os.path.abspath(source)):
+        data = None
+        with open(os.path.abspath(source), 'r') as fp:
+            data = fp.read(50)
+        # load WKT geometry and remove leading whitespaces
+        if data.lower().lstrip().startswith(('polygon', 'multipolygon')):
+            geom = load_polygons(source)
+    # source is an OGR datasource
+    if geom is None:
+        geom = load_datasource(source)
 
-    Returns the bbox and a Shapely MultiPolygon with
-    the loaded geometries.
-    """
-    polygons = []
-    if isinstance(wkt_files, basestring):
-        wkt_files = [wkt_files]
-
-    for geom_file in wkt_files:
-        # open with utf-8-sig encoding to get rid of UTF8 BOM from MS Notepad
-        with codecs.open(geom_file, encoding='utf-8-sig') as f:
-            polygons.extend(load_polygon_lines(f, source=wkt_files))
-
-    if rtree:
-        return LimitRTreeGeometry(polygons)
-    else:
-        log.info('You should install RTree for large --limit-to polygons')
-        mp = shapely.geometry.MultiPolygon(polygons)
-        return LimitPolygonGeometry(mp)
-
-def load_polygon_lines(line_iter, source='<string>'):
-    polygons = []
-    for line in line_iter:
-        if not line.strip():
-            continue
-        geom = shapely.wkt.loads(line)
-        if geom.type == 'Polygon':
-            polygons.append(geom)
-        elif geom.type == 'MultiPolygon':
-            for p in geom:
-                polygons.append(p)
+    if geom:
+        if rtree:
+            return LimitRTreeGeometry(geom)
         else:
-            log.warn('ignoring non-polygon geometry (%s) from %s',
-                geom.type, source)
-
-    return polygons
-
+            log.info('You should install RTree for large --limit-to polygons')
+            return LimitPolygonGeometry(build_multipolygon(geom)[1])
+    return None
+    
 class EmtpyGeometryError(Exception):
     pass
 
