@@ -259,6 +259,12 @@ def load_geom(source):
         geom = load_datasource(source)
 
     if geom:
+        try:
+            # get the first and maybe only geometry
+            check_wgs84_srs(geom[0])
+        except ValueError, e:
+            log.error(e)
+            return None
         if rtree:
             return LimitRTreeGeometry(geom)
         else:
@@ -266,6 +272,12 @@ def load_geom(source):
             return LimitPolygonGeometry(build_multipolygon(geom)[1])
     return None
     
+def check_wgs84_srs(geom):
+    bbox = geom.bounds
+    if bbox[0] >= -180 and bbox[1] >= -90 and bbox[2] <= 180 and bbox[3] <= 90:
+        return True
+    raise ValueError('Geometry is not in EPSG:4326')
+
 class EmtpyGeometryError(Exception):
     pass
 
