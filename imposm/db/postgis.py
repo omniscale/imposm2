@@ -123,6 +123,20 @@ class PostGISDB(object):
 
         self.connection.commit()
 
+    def post_insert(self, mappings):
+        mappings = [m for m in mappings.values() if isinstance(m, (GeneralizedTable, Mapping))]
+        for mapping in mappings:
+            table_name = self.to_tablename(mapping.name)
+            self.create_geom_index(table_name)
+
+    def create_geom_index(self, table_name):
+        idx_name = '%s_geom' % table_name
+        cur = self.connection.cursor()
+        cur.execute("""
+            CREATE INDEX "%s" ON "%s" USING GIST (geometry)
+        """ % (idx_name,table_name))
+        self.connection.commit()
+
     def geom_wrapper(self, geom):
         return psycopg2.Binary(geom.wkb)
 
@@ -192,9 +206,6 @@ class PostGISDB(object):
 
         self.create_field_indices(cur=cur, mapping=mapping, tablename=tablename)
 
-        cur.execute("""
-            CREATE INDEX "%(tablename)s_geom" ON "%(tablename)s" USING GIST (geometry)
-        """ % dict(tablename=tablename))
 
     def create_geometry_column(self, cur, tablename, mapping):
         if self.use_geometry_columns_table:
@@ -424,10 +435,6 @@ class PostGISGeneralizedTable(object):
         self.mapping = mapping
         self.table_name = db.to_tablename(mapping.name)
 
-    def _idx_stmt(self):
-        return 'CREATE INDEX "%s_geom" ON "%s" USING GIST (geometry)' % (
-            self.table_name, self.table_name)
-
     def _geom_table_stmt(self):
         assert self.db.use_geometry_columns_table
         stmt = "insert into geometry_columns values ('', 'public', '%s', 'geometry', 2, %d, 'GEOMETRY')" % (
@@ -461,7 +468,6 @@ class PostGISGeneralizedTable(object):
         self.db.drop_table_or_view(cur, self.table_name)
 
         cur.execute(self._stmt())
-        cur.execute(self._idx_stmt())
 
         if self.db.use_geometry_columns_table:
             cur.execute('SELECT * FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))

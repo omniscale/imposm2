@@ -274,6 +274,11 @@ def main(argv=None):
             view_timer = imposm.util.Timer('creating views', logger)
             db.create_views(mappings)
             view_timer.stop()
+            
+            logger.message('## creating geometry indexes')
+            index_timer = imposm.util.Timer('creating indexes', logger)
+            db.post_insert(mappings);
+            index_timer.stop()
 
             db.commit()
 
