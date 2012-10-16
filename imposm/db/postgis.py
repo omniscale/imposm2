@@ -438,10 +438,9 @@ class PostGISGeneralizedTable(object):
         fields = ', '.join([n for n, t in self.mapping.fields])
         if fields:
             fields += ','
+        where = ' WHERE ST_IsValid(ST_SimplifyPreserveTopology(geometry, %f))' % (self.mapping.tolerance,)
         if self.mapping.where:
-            where = ' WHERE ' + self.mapping.where
-        else:
-            where = ''
+            where = ' AND '.join([where, self.mapping.where])
 
         if config.imposm_pg_serial_id:
             serial_column = "id, "
@@ -449,7 +448,7 @@ class PostGISGeneralizedTable(object):
             serial_column = ""
 
         return """CREATE TABLE "%s" AS (SELECT %s osm_id, %s
-            ST_Simplify(geometry, %f) as geometry from "%s"%s)""" % (
+            ST_SimplifyPreserveTopology(geometry, %f) as geometry from "%s"%s)""" % (
             self.table_name, serial_column, fields, self.mapping.tolerance,
             self.db.to_tablename(self.mapping.origin.name),
             where)
