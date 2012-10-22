@@ -232,7 +232,7 @@ class WayProcess(ImporterProcess):
                 coords = coords_cache.get_coords(way.refs)
 
                 if not coords:
-                    print 'missing coords for way %s' % (way.osm_id, )
+                    log.debug('missing coords for way %s', way.osm_id)
                     continue
 
                 self.insert(mappings, way.osm_id, coords, way.tags)
