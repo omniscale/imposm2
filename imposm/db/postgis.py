@@ -235,6 +235,7 @@ class PostGISDB(object):
         cur = self.connection.cursor()
 
         self.remove_tables(backup_prefix)
+        self.remove_views(backup_prefix)
 
         cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (existing_prefix + '%', ))
         existing_tables = []
@@ -243,6 +244,14 @@ class PostGISDB(object):
             if table_name.startswith(existing_prefix) and not table_name.startswith((new_prefix, backup_prefix)):
                 # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_tables.append(table_name)
+
+        cur.execute('SELECT viewname FROM pg_views WHERE viewname like %s', (existing_prefix + '%', ))
+        existing_views = []
+        for row in cur:
+            view_name = row[0]
+            if view_name.startswith(existing_prefix) and not view_name.startswith((new_prefix, backup_prefix)):
+                # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
+                existing_views.append(view_name)
 
         cur.execute('SELECT indexname FROM pg_indexes WHERE indexname like %s', (existing_prefix + '%', ))
         existing_indexes = set()
@@ -265,6 +274,12 @@ class PostGISDB(object):
         for row in cur:
             table_name = row[0]
             new_tables.append(table_name)
+
+        cur.execute('SELECT viewname FROM pg_views WHERE viewname like %s', (new_prefix + '%', ))
+        new_views = []
+        for row in cur:
+            view_name = row[0]
+            new_views.append(view_name)
 
         cur.execute('SELECT indexname FROM pg_indexes WHERE indexname like %s', (new_prefix + '%', ))
         new_indexes = set()
@@ -296,6 +311,14 @@ class PostGISDB(object):
             if self.use_geometry_columns_table:
                 cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
 
+        # rename existing views (osm_) to backup_prefix (osm_backup_)
+        for view_name in existing_views:
+            rename_to = view_name.replace(existing_prefix, backup_prefix)
+            cur.execute('ALTER VIEW "%s" RENAME TO "%s"' % (view_name, rename_to))
+
+            if self.use_geometry_columns_table:
+                cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, view_name))
+
         # rename new tables (osm_new_) to existing_prefix (osm_)
         for table_name in new_tables:
             rename_to = table_name.replace(new_prefix, existing_prefix)
@@ -309,6 +332,15 @@ class PostGISDB(object):
                 cur.execute('ALTER SEQUENCE "%s" RENAME TO "%s"' % (table_name + '_id_seq', rename_to + '_id_seq'))
             if self.use_geometry_columns_table:
                 cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, table_name))
+
+        # rename new views (osm_new_) to existing_prefix (osm_)
+        for view_name in new_views:
+            rename_to = view_name.replace(new_prefix, existing_prefix)
+            cur.execute('ALTER VIEW "%s" RENAME TO "%s"' % (view_name, rename_to))
+
+            if self.use_geometry_columns_table:
+                cur.execute('UPDATE geometry_columns SET f_table_name = %s WHERE f_table_name = %s', (rename_to, view_name))
+
 
     def remove_tables(self, prefix):
         cur = self.connection.cursor()
