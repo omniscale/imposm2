@@ -1,16 +1,18 @@
 Changelog
 ---------
 
-2.x.x
-~~~~~
+2.5.0 2012-12-06
+~~~~~~~~~~~~~~~~
 
 - PostGIS 2 support
+- new --limit-to option to limit imports to polygons
 - added --quiet option that only logs progress once per minute
 - add StringIndex and Index mappings for PostgreSQL
 - always drop tables _and_ views with same name before creating new
   table/view. allows to change mappings from views to tables and
   vice versa.
 - internal refactoring to make support for non SQL databases easier
+
 
 2.4.0 2012-03-30
 ~~~~~~~~~~~~~~~~
