@@ -129,8 +129,8 @@ def main(argv=None):
     parser.add_option('-n', '--dry-run', dest='dry_run', default=False,
         action='store_true')
 
-    parser.add_option('--limit-to', dest='limit_to', metavar='WKT file',
-        help='limit imported geometries to WKT (multi)polygons in EPSG:4326')
+    parser.add_option('--limit-to', dest='limit_to', metavar='file',
+        help='limit imported geometries to (multi)polygons in EPSG:4326')
 
     (options, args) = parser.parse_args(argv)
 
@@ -287,7 +287,7 @@ def main(argv=None):
             view_timer = imposm.util.Timer('creating views', logger)
             db.create_views(mappings)
             view_timer.stop()
-            
+
             logger.message('## creating geometry indexes')
             index_timer = imposm.util.Timer('creating indexes', logger)
             db.post_insert(mappings);

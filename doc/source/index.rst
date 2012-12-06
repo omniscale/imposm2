@@ -15,7 +15,7 @@ Custom database schemas
 
 Multiple CPU/core support
   Imposm is parallel from the ground up. It distributes parsing and processing to multiple CPUs/cores.
-  
+
 Unify values
   For example, the boolean values `1`, `on`, `true` and `yes` all become ``TRUE``.
 
@@ -33,6 +33,9 @@ Generalized tables
 
 Union views
   It can create views that combine multiple tables.
+
+Limit to polygons
+  It can limit imported geometries to polygons from Shapefiles or GeoJSON.
 
 Limitations
 -----------
@@ -76,7 +79,7 @@ Contents
 
 .. Indices and tables
 .. ==================
-.. 
+..
 .. * :ref:`genindex`
 .. * :ref:`modindex`
 .. * :ref:`search`

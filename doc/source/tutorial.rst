@@ -67,6 +67,16 @@ You can combine reading and writing::
   imposm --read --write -d osm hamburg.osm.bz2
 
 
+Limit to
+~~~~~~~~
+
+You can limit the imported geometries to polygon boundaries. You can load the limit-to polygons from Shapefiles, GeoJSON or any other OGR compatible source. The geometries need to be in EPSG:4326.
+
+::
+
+    imposm --read --write -d osm europe.osm.pbf --limit-to germany.shp
+
+
 Optimize
 --------
 
