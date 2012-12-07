@@ -245,19 +245,7 @@ def split_polygon_at_grid(geom, grid_width=0.1):
             yield polygon_part
 
 def load_geom(source):
-    geom = None
-    # source is a wkt file
-    if os.path.exists(os.path.abspath(source)):
-        data = None
-        with open(os.path.abspath(source), 'r') as fp:
-            data = fp.read(50)
-        # load WKT geometry and remove leading whitespaces
-        if data.lower().lstrip().startswith(('polygon', 'multipolygon')):
-            geom = load_polygons(source)
-    # source is an OGR datasource
-    if geom is None:
-        geom = load_datasource(source)
-
+    geom = load_datasource(source)
     if geom:
         # get the first and maybe only geometry
         if not check_wgs84_srs(geom[0]):
