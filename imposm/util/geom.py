@@ -58,7 +58,7 @@ def load_ogr_datasource(datasource, where=None):
 
     Returns a list of Shapely Polygons.
     """
-    from mapproxy.util.ogr import OGRShapeReader
+    from imposm.util.ogr import OGRShapeReader
 
     polygons = []
     for wkt in OGRShapeReader(datasource).wkts(where):
