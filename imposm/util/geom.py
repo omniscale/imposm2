@@ -16,6 +16,7 @@
 from __future__ import division, with_statement
 
 import codecs
+import os
 from functools import partial
 
 import logging
@@ -37,13 +38,28 @@ def require_geom_support():
 
 def load_datasource(datasource, where=None):
     """
-    Loads polygons from any OGR datasource.
-    
-    Returns the bbox and a Shapely MultiPolygon with
-    the loaded geometries.
+    Loads polygons from WKT text files or OGR datasources.
+
+    Returns a list of Shapely Polygons.
     """
-    from imposm.util.ogr import OGRShapeReader
-    
+    # check if it is a  wkt file
+    if os.path.exists(os.path.abspath(datasource)):
+        with open(os.path.abspath(datasource), 'r') as fp:
+            data = fp.read(50)
+        if data.lower().lstrip().startswith(('polygon', 'multipolygon')):
+            return load_polygons(datasource)
+
+    # otherwise pass to OGR
+    return load_ogr_datasource(datasource, where=where)
+
+def load_ogr_datasource(datasource, where=None):
+    """
+    Loads polygons from any OGR datasource.
+
+    Returns a list of Shapely Polygons.
+    """
+    from mapproxy.util.ogr import OGRShapeReader
+
     polygons = []
     for wkt in OGRShapeReader(datasource).wkts(where):
         geom = shapely.wkt.loads(wkt)
@@ -55,13 +71,14 @@ def load_datasource(datasource, where=None):
         else:
             log.info('skipping %s geometry from %s: not a Polygon/MultiPolygon',
                 geom.type, datasource)
+
     return polygons
 
 def load_polygons(geom_files):
     """
     Loads WKT polygons from one or more text files.
     
-    Returns the bbox and a Shapely MultiPolygon with
+    Returns a Shapely MultiPolygon with
     the loaded geometries.
     """
     polygons = []
