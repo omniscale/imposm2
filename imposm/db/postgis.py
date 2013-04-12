@@ -445,17 +445,26 @@ class PostGISGeneralizedTable(object):
         fields = ', '.join([n for n, t in self.mapping.fields])
         if fields:
             fields += ','
-        where = ' WHERE ST_IsValid(ST_SimplifyPreserveTopology(geometry, %f))' % (self.mapping.tolerance,)
+
+        # add a buffer to the simplified geometry and generate a valid geometry
+        # even large geometries will get invalid, so this fix is needed
+        
+        # This make the ST_IsValid test needless
+        # where = ' WHERE ST_IsValid(ST_SimplifyPreserveTopology(geometry, %f))' % (self.mapping.tolerance,)
+
+        where = ''
         if self.mapping.where:
-            where = ' AND '.join([where, self.mapping.where])
+            where = 'WHERE %s' % (self.mapping.where)
+            # where = ' AND '.join([where, self.mapping.where])
 
         if config.imposm_pg_serial_id:
             serial_column = "id, "
         else:
             serial_column = ""
-
+        # add a buffer to the simplified geometry and generate a valid geometry
+        # even large geometries will get invalid, so this fix is needed
         return """CREATE TABLE "%s" AS (SELECT %s osm_id, %s
-            ST_SimplifyPreserveTopology(geometry, %f) as geometry from "%s"%s)""" % (
+            ST_Buffer(ST_SimplifyPreserveTopology(geometry, %f),0) as geometry from "%s"%s)""" % (
             self.table_name, serial_column, fields, self.mapping.tolerance,
             self.db.to_tablename(self.mapping.origin.name),
             where)
