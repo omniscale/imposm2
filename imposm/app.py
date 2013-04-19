@@ -248,7 +248,7 @@ def main(argv=None):
         if options.write:
             err = check_connection(db_conf)
             if err:
-                logger.message("WARNING: unable to connect to database.\n{0}".format(err))
+                logger.message("ERROR: unable to connect to database. Check your DB settings.\n{0}".format(err))
                 sys.exit(2)
 
         reader = ImposmReader(tag_mapping, cache=cache, merge=options.merge_cache,
