@@ -40,7 +40,7 @@ import imposm.mapping
 import imposm.util
 import imposm.version
 from imposm.writer import ImposmWriter
-from imposm.db.config import DB
+from imposm.db.config import DB, check_connection
 from imposm.cache import OSMCache
 from imposm.reader import ImposmReader
 from imposm.mapping import TagMapper
@@ -244,6 +244,12 @@ def main(argv=None):
         if not args:
             print "no file(s) supplied"
             sys.exit(2)
+
+        if options.write:
+            err = check_connection(db_conf)
+            if err:
+                logger.message("WARNING: unable to connect to database.\n{0}".format(err))
+                sys.exit(2)
 
         reader = ImposmReader(tag_mapping, cache=cache, merge=options.merge_cache,
             pool_size=options.concurrency, logger=logger_parser)
