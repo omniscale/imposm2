@@ -229,7 +229,9 @@ def main(argv=None):
                 if not options.overwrite_cache:
                     print (
                         "ERROR: found existing cache files in '%s'. "
-                        'remove files or use --overwrite-cache or --merge-cache.'
+                        'Remove --read option to use the existing cache '
+                        'or use --overwrite-cache or --merge-cache to '
+                        'overwrite or merge it.'
                         % os.path.abspath(options.cache_dir)
                     )
                     sys.exit(2)
