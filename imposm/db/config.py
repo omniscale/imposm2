@@ -25,6 +25,13 @@ def DB(db_conf):
         return PostGISDB(db_conf)
     raise ValueError('unknown db: %s' % (db_conf.name,))
 
+def check_connection(db_conf):
+    try:
+        db = DB(db_conf)
+        db.connection
+    except Exception, e:
+        return e
+
 def db_conf_from_string(conf, base_db_conf):
     db_conf = _parse_rfc1738_args(conf)
     if 'proj' not in db_conf:
