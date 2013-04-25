@@ -487,10 +487,16 @@ class PostGISGeneralizedTable(object):
         else:
             serial_column = ""
 
-        # ST_SimplifyPreserveTopology can return invalid geometries but
-        # ST_Buffer should be able to fix them
-        return """CREATE TABLE "%s" AS (SELECT %s osm_id, %s
-            ST_Buffer(ST_SimplifyPreserveTopology(geometry, %f),0) as geometry from "%s"%s)""" % (
+        stmt = """CREATE TABLE "%s" AS (SELECT %s osm_id, %s """
+        if self.mapping.geom_type == 'GEOMETRY':
+            # ST_SimplifyPreserveTopology can return invalid polygons but
+            # ST_Buffer should be able to fix them
+            stmt += """ST_Buffer(ST_SimplifyPreserveTopology(geometry, %f),0)"""
+        else:
+            stmt += """ST_SimplifyPreserveTopology(geometry, %f)"""
+        stmt += """as geometry from "%s"%s)"""
+
+        return stmt % (
             self.table_name, serial_column, fields, self.mapping.tolerance,
             self.db.to_tablename(self.mapping.origin.name),
             where)
