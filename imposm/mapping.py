@@ -342,10 +342,17 @@ class GeneralizedTable(object):
         self.name = name
         self.tolerance = tolerance
         self.origin = origin
+        self.geom_type = origin.geom_type
         self.classname = origin.name
         self.fields = self.origin.fields
         self.with_type_field = self.origin.with_type_field
         self.where = where
+
+class ValidPolygonTable(object):
+    def __init__(self, origin):
+        self.origin = origin
+        self.name = origin.name
+        self.geom_type = getattr(origin, 'geom_type', None)
 
 class UnionView(object):
     def __init__(self, name, mappings, fields):
