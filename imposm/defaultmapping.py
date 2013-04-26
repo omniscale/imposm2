@@ -474,3 +474,11 @@ roads_gen0 = UnionView(
     ),
     mappings = [railways_gen0, mainroads_gen0, motorways_gen0],
 )
+
+landuse_gen1_valid = ValidPolygonTable(
+    origin = landusages_gen1,
+)
+
+landuse_gen0_valid = ValidPolygonTable(
+    origin = landusages_gen0,
+)
