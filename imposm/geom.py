@@ -210,8 +210,8 @@ def tile_bbox(bbox, grid_width):
     max_x = math.ceil(bbox[2]/grid_width) * grid_width
     max_y = math.ceil(bbox[3]/grid_width) * grid_width
 
-    x_steps = (max_x - min_x) / grid_width
-    y_steps = (max_y - min_y) / grid_width
+    x_steps = math.ceil((max_x - min_x) / grid_width)
+    y_steps = math.ceil((max_y - min_y) / grid_width)
 
     for x in xrange(int(x_steps)):
         for y in xrange(int(y_steps)):
@@ -222,7 +222,7 @@ def tile_bbox(bbox, grid_width):
                 min_y + (y + 1)* grid_width,
             )
 
-def split_polygon_at_grid(geom, grid_width=0.1):
+def split_polygon_at_grid(geom, grid_width=0.1, current_grid_width=10.0):
     """
     >>> p = list(split_polygon_at_grid(geometry.box(-0.5, 1, 0.2, 2), 1))
     >>> p[0].contains(geometry.box(-0.5, 1, 0, 2))
@@ -236,13 +236,18 @@ def split_polygon_at_grid(geom, grid_width=0.1):
     """
     if not geom.is_valid:
         geom = geom.buffer(0)
-    for split_box in tile_bbox(geom.bounds, grid_width):
+
+    for i, split_box in enumerate(tile_bbox(geom.bounds, current_grid_width)):
         try:
             polygon_part = geom.intersection(shapely.geometry.box(*split_box))
         except TopologicalError:
             continue
-        if not polygon_part.is_empty:
-            yield polygon_part
+        if not polygon_part.is_empty and polygon_part.type.endswith('Polygon'):
+            if grid_width >= current_grid_width:
+                yield polygon_part
+            else:
+                for part in split_polygon_at_grid(polygon_part, grid_width, current_grid_width/10.0):
+                    yield part
 
 def load_geom(source):
     geom = None
