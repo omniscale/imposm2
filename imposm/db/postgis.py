@@ -23,7 +23,7 @@ import logging
 log = logging.getLogger(__name__)
 
 from imposm import config
-from imposm.mapping import UnionView, GeneralizedTable, ValidPolygonTable, Mapping
+from imposm.mapping import UnionView, GeneralizedTable, FixInvalidPolygons, Mapping
 
 unknown = object()
 
@@ -374,10 +374,10 @@ class PostGISDB(object):
         for mapping in sorted(mappings, key=lambda x: x.name, reverse=True):
             PostGISGeneralizedTable(self, mapping).create()
 
-    def generate_valid_tables(self, mappings):
-        mappings = [m for m in mappings.values() if isinstance(m, ValidPolygonTable)]
+    def postprocess_tables(self, mappings):
+        mappings = [m for m in mappings.values() if isinstance(m, FixInvalidPolygons)]
         for mapping in mappings:
-            PostGISValidPolygonTable(self, mapping).update()
+            PostGISFixInvalidPolygons(self, mapping).update()
 
     def optimize(self, mappings):
         mappings = [m for m in mappings.values() if isinstance(m, (GeneralizedTable, Mapping))]
@@ -513,7 +513,12 @@ class PostGISGeneralizedTable(object):
                 cur.execute('DELETE FROM geometry_columns WHERE f_table_name = %s', (self.table_name, ))
             cur.execute(self._geom_table_stmt())
 
-class PostGISValidPolygonTable(object):
+class PostGISFixInvalidPolygons(object):
+    """
+    Try to make all polygons valid.
+    ST_SimplifyPreserveTopology (used for the generalized tables) can return invalid
+    geometries but ST_Buffer should be able to fix them.
+    """
     def __init__(self, db, mapping):
         self.db = db
         self.mapping = mapping
@@ -530,21 +535,25 @@ class PostGISValidPolygonTable(object):
 
     def update(self):
         if self.mapping.geom_type != 'GEOMETRY':
-            log.info('Fix geometries only usable for Polygon Mappings')
+            log.info('Validating of polygons only usable for Polygon/GEOMETRY mappings')
             return
 
-        # ST_SimplifyPreserveTopology can return invalid geometries but
-        # ST_Buffer should be able to fix them
         cur = self.db.connection.cursor()
 
+        # fix geometries one-by-one because ST_buffer can fail an we wouldn't be able to
+        # tell wich geometry caused it to fail
         for osm_id in self._fetch_invalid_geometries():
             update = 'UPDATE %s SET geometry = ST_Buffer(geometry,0) WHERE osm_id = %d' % (self.table_name, osm_id)
+            cur.execute('SAVEPOINT polygonfix;')
             try:
                 cur.execute(update)
-            except psycopg2.InternalError, ex:
-                log.warn('Could not fix geometry with osm_id %d. Row will be deleted. Internal Error was: %s' % (osm_id, ex))
+            except psycopg2.DatabaseError, ex:
+                log.warn('Could not fix geometry with osm_id %d. Row will be deleted. Internal error was: %s' % (osm_id, ex))
+                cur.execute('ROLLBACK TO SAVEPOINT polygonfix;')
                 cur.execute('DELETE FROM %s WHERE osm_id = %d' % (self.table_name, osm_id))
-            
+            else:
+                cur.execute('RELEASE SAVEPOINT polygonfix;')
+
 class TrigramIndex(object):
     pass
 

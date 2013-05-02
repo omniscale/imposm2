@@ -36,6 +36,7 @@ __all__ = [
     'WayZOrder',
     'Bool',
     'GeneralizedTable',
+    'FixInvalidPolygons',
     'UnionView',
     'set_default_name_field',
 ]
@@ -364,7 +365,12 @@ class GeneralizedTable(object):
         self.with_type_field = self.origin.with_type_field
         self.where = where
 
-class ValidPolygonTable(object):
+class FixInvalidPolygons(object):
+    """
+    Post-processing that tries to fix all invalid polygons.
+
+    :PostGIS datatype: GEOMETRY (POLYGON does not support multi-polygons)
+    """
     def __init__(self, origin):
         self.origin = origin
         self.name = origin.name

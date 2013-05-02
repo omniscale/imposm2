@@ -291,11 +291,6 @@ def main(argv=None):
             db.create_generalized_tables(mappings)
             generalized_timer.stop()
 
-            logger.message('## create validation tables')
-            valid_timer = imposm.util.Timer('validating tables', logger)
-            db.generate_valid_tables(mappings)
-            valid_timer.stop()
-
             logger.message('## creating union views')
             view_timer = imposm.util.Timer('creating views', logger)
             db.create_views(mappings)
@@ -305,6 +300,11 @@ def main(argv=None):
             index_timer = imposm.util.Timer('creating indexes', logger)
             db.post_insert(mappings);
             index_timer.stop()
+
+            logger.message('## post-processing tables')
+            valid_timer = imposm.util.Timer('post-processing tables', logger)
+            db.postprocess_tables(mappings)
+            valid_timer.stop()
 
             db.commit()
 
