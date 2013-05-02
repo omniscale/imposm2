@@ -3,7 +3,7 @@ from scriptine import path
 from scriptine.shell import backtick_, sh
 
 PACKAGE_NAME = 'imposm'
-REMOTE_DOC_LOCATION = 'os@imposm.org:imposm_homepage/docs/imposm'
+REMOTE_DOC_LOCATION = 'omniscale.de:domains/imposm.org/docs/imposm'
 # REMOTE_REL_LOCATION = 'os@imposm.org:imposm_homepage/static/rel'
 
 VERSION_FILES = [
@@ -38,11 +38,11 @@ def bump_version_command(version):
         else:
             search_for = replace.replace('##', '[^\'"]+')
             replace_with = replace.replace('##', short_version)
-        
+
         search_for = search_for.replace('"', '\\"')
         replace_with = replace_with.replace('"', '\\"')
         sh('''perl -p -i -e "s/%(search_for)s/%(replace_with)s/" %(filename)s ''' % locals())
-    
+
     prepare_command()
 
 def build_docs_command():
