@@ -37,6 +37,27 @@ To install all requirements on Ubuntu::
     export LD_LIBRARY_PATH=~/local/lib
     imposm [args]
 
+
+Limit to
+~~~~~~~~
+
+The ``--limit-to`` option requires:
+
+- `libspatialindex <http://libspatialindex.github.com/>`_: libspatialindex
+- `RTree <http://pypi.python.org/pypi/Rtree/>`_: RTree
+- `GDAL <http://gdal.org/>`_: GDAL
+
+
+On Ubuntu::
+
+  sudo aptitude install libgdal1-dev libspatialindex1
+
+And after the Imposm installation below::
+
+    pip install rtree
+
+
+
 Installation
 ------------
 

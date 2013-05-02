@@ -210,8 +210,8 @@ def tile_bbox(bbox, grid_width):
     max_x = math.ceil(bbox[2]/grid_width) * grid_width
     max_y = math.ceil(bbox[3]/grid_width) * grid_width
 
-    x_steps = (max_x - min_x) / grid_width
-    y_steps = (max_y - min_y) / grid_width
+    x_steps = math.ceil((max_x - min_x) / grid_width)
+    y_steps = math.ceil((max_y - min_y) / grid_width)
 
     for x in xrange(int(x_steps)):
         for y in xrange(int(y_steps)):
@@ -222,7 +222,7 @@ def tile_bbox(bbox, grid_width):
                 min_y + (y + 1)* grid_width,
             )
 
-def split_polygon_at_grid(geom, grid_width=0.1):
+def split_polygon_at_grid(geom, grid_width=0.1, current_grid_width=10.0):
     """
     >>> p = list(split_polygon_at_grid(geometry.box(-0.5, 1, 0.2, 2), 1))
     >>> p[0].contains(geometry.box(-0.5, 1, 0, 2))
@@ -236,13 +236,18 @@ def split_polygon_at_grid(geom, grid_width=0.1):
     """
     if not geom.is_valid:
         geom = geom.buffer(0)
-    for split_box in tile_bbox(geom.bounds, grid_width):
+
+    for i, split_box in enumerate(tile_bbox(geom.bounds, current_grid_width)):
         try:
             polygon_part = geom.intersection(shapely.geometry.box(*split_box))
         except TopologicalError:
             continue
-        if not polygon_part.is_empty:
-            yield polygon_part
+        if not polygon_part.is_empty and polygon_part.type.endswith('Polygon'):
+            if grid_width >= current_grid_width:
+                yield polygon_part
+            else:
+                for part in split_polygon_at_grid(polygon_part, grid_width, current_grid_width/10.0):
+                    yield part
 
 def load_geom(source):
     geom = load_datasource(source)
@@ -257,7 +262,7 @@ def load_geom(source):
             log.info('You should install RTree for large --limit-to polygons')
             return LimitPolygonGeometry(build_multipolygon(geom)[1])
     return None
-    
+
 def check_wgs84_srs(geom):
     bbox = geom.bounds
     if bbox[0] >= -180 and bbox[1] >= -90 and bbox[2] <= 180 and bbox[3] <= 90:
@@ -314,6 +319,10 @@ def filter_geometry_by_type(geometry, geom_type):
     """
     if geometry.type == geom_type:
         # same type is fine
+        return geometry
+
+    if geometry.type == 'Polygon' and geom_type == 'MultiPolygon':
+        # multipolygon mappings also support polygons
         return geometry
 
     if geometry.type == 'MultiPolygon' and geom_type == 'Polygon':
@@ -382,9 +391,6 @@ class LimitRTreeGeometry(object):
                     new_geom_part = polygon.intersection(geom)
                     new_geom_part = filter_geometry_by_type(new_geom_part, geom.type)
                     if new_geom_part:
-                        if len(intersection_ids) == 1:
-                            return new_geom_part
-
                         if isinstance(new_geom_part, list):
                             intersections.extend(new_geom_part)
                         else:
@@ -397,15 +403,20 @@ class LimitRTreeGeometry(object):
 
         # intersections from multiple sub-polygons
         # try to merge them back to a single geometry
-        if geom.type.endswith('Polygon'):
-            union = cascaded_union(list(flatten_polygons(intersections)))
-        elif geom.type.endswith('LineString'):
-            union = linemerge(list(flatten_linestrings(intersections)))
-            if union.type == 'MultiLineString':
-                union = list(union.geoms)
-        elif geom.type == 'Point':
-            union = intersections[0]
-        else:
-            log.warn('unexpexted geometry type %s', geom.type)
+        try:
+            if geom.type.endswith('Polygon'):
+                union = cascaded_union(list(flatten_polygons(intersections)))
+            elif geom.type.endswith('LineString'):
+                union = linemerge(list(flatten_linestrings(intersections)))
+                if union.type == 'MultiLineString':
+                    union = list(union.geoms)
+            elif geom.type == 'Point':
+                union = intersections[0]
+            else:
+                log.warn('unexpexted geometry type %s', geom.type)
+                raise EmtpyGeometryError()
+        except ValueError, ex:
+            # likely an 'No Shapely geometry can be created from null value' error
+            log.warn('could not create union: %s', ex)
             raise EmtpyGeometryError()
         return union

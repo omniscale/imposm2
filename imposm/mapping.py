@@ -36,6 +36,7 @@ __all__ = [
     'WayZOrder',
     'Bool',
     'GeneralizedTable',
+    'FixInvalidPolygons',
     'UnionView',
     'set_default_name_field',
 ]
@@ -251,16 +252,13 @@ class TagMapper(object):
             tags.setdefault(k, set()).update(v)
         for k, v in self.polygon_tags.iteritems():
             tags.setdefault(k, set()).update(v)
-        tags['type'] = set(['multipolygon', 'boundary'])  # for type=multipolygon
+        tags['type'] = set(['multipolygon', 'boundary', 'land_area'])  # for type=multipolygon
         expected_tags = set(['type', 'name'])
         _rel_filter = self._tag_filter(tags)
         def rel_filter(tags):
-            if tags.get('type') == 'multipolygon':
-                pass
-            elif tags.get('type') == 'boundary' and 'boundary' in tags:
-                # a lot of the boundary relations are not multipolygon
-                pass
-            else:
+            # we only support mulipolygon relations, skip all other
+            # a lot of the admin boundary/land_area relations are not type=multipolygon
+            if tags.get('type') not in ('multipolygon', 'boundary', 'land_area'):
                 tags.clear()
                 return
             tag_count = len(tags)
@@ -336,16 +334,47 @@ class Polygons(Mapping):
     geom_builder = imposm.geom.PolygonBuilder()
     geom_type = 'GEOMETRY' # for multipolygon support
 
+    """
+    Prevent ways that are part of a multi-polygon to be inserted
+    twice. E.g. multipolygon of two closed forests ways where the ways
+    are also tagged would be inserted twice when skip_inserted_ways is False
+    First as a multipolygon when processing the relations and second as a
+    two polygons when processing the ways.
+    """
+    skip_inserted_ways = True
+
+
+class BoundaryPolygons(Polygons):
+    """
+    Table class for boundary polygon features.
+    Similar to `Polygons` but ways that are inserted during multi-polygon
+    processing are processed again for ways.
+
+    :PostGIS datatype: GEOMETRY (POLYGON does not support multi-polygons)
+    """
+    skip_inserted_ways = False
 
 class GeneralizedTable(object):
     def __init__(self, name, tolerance, origin, where=None):
         self.name = name
         self.tolerance = tolerance
         self.origin = origin
+        self.geom_type = origin.geom_type
         self.classname = origin.name
         self.fields = self.origin.fields
         self.with_type_field = self.origin.with_type_field
         self.where = where
+
+class FixInvalidPolygons(object):
+    """
+    Post-processing that tries to fix all invalid polygons.
+
+    :PostGIS datatype: GEOMETRY (POLYGON does not support multi-polygons)
+    """
+    def __init__(self, origin):
+        self.origin = origin
+        self.name = origin.name
+        self.geom_type = getattr(origin, 'geom_type', None)
 
 class UnionView(object):
     def __init__(self, name, mappings, fields):
