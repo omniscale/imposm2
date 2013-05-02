@@ -333,6 +333,10 @@ def filter_geometry_by_type(geometry, geom_type):
         # same type is fine
         return geometry
 
+    if geometry.type == 'Polygon' and geom_type == 'MultiPolygon':
+        # multipolygon mappings also support polygons
+        return geometry
+
     if geometry.type == 'MultiPolygon' and geom_type == 'Polygon':
         # polygon mappings should also support multipolygons
         return geometry
