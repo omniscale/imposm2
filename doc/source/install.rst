@@ -43,14 +43,14 @@ Limit to
 
 The ``--limit-to`` option requires:
 
-- `libspatialindex <http://libspatialindex.github.com/>`_: libspatialindex
+- `libspatialindex <http://libspatialindex.github.com/>`_: libspatialindex-dev
 - `RTree <http://pypi.python.org/pypi/Rtree/>`_: RTree
 - `GDAL <http://gdal.org/>`_: GDAL
 
 
 On Ubuntu::
 
-  sudo aptitude install libgdal1-dev libspatialindex1
+  sudo aptitude install libgdal1-dev libspatialindex-dev
 
 And after the Imposm installation below::
 
