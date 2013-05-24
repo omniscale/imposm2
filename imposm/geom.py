@@ -358,6 +358,12 @@ def flatten_linestrings(linestrings):
         else:
             yield linestring
 
+def filter_invalid_linestrings(linestrings):
+    for linestring in linestrings:
+        # filter out tiny linestrings, can become invalid geometries in postgis
+        if linestring.length > 1e-9:
+            yield linestring
+
 class LimitRTreeGeometry(object):
     def __init__(self, polygons):
         index = rtree.index.Index()
@@ -407,7 +413,11 @@ class LimitRTreeGeometry(object):
             if geom.type.endswith('Polygon'):
                 union = cascaded_union(list(flatten_polygons(intersections)))
             elif geom.type.endswith('LineString'):
-                union = linemerge(list(flatten_linestrings(intersections)))
+                linestrings = flatten_linestrings(intersections)
+                linestrings = list(filter_invalid_linestrings(linestrings))
+                if not linestrings:
+                    raise EmtpyGeometryError()
+                union = linemerge(linestrings)
                 if union.type == 'MultiLineString':
                     union = list(union.geoms)
             elif geom.type == 'Point':
