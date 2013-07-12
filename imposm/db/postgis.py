@@ -234,8 +234,11 @@ class PostGISDB(object):
     def swap_tables(self, new_prefix, existing_prefix, backup_prefix):
         cur = self.connection.cursor()
 
-        self.remove_tables(backup_prefix)
+        # remove views before tables, because remove_tables will also remove
+        # views via CASCADE and we need the view names for cleanup of
+        # geometry_columns
         self.remove_views(backup_prefix)
+        self.remove_tables(backup_prefix)
 
         cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (existing_prefix + '%', ))
         existing_tables = []
