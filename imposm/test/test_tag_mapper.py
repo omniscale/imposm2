@@ -1,11 +1,11 @@
 # Copyright 2011 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,7 +14,7 @@
 
 import os
 import imposm
-from imposm.mapping import TagMapper
+from imposm.mapping import TagMapper, LineStrings
 
 from nose.tools import eq_
 
@@ -24,13 +24,13 @@ class TestTagMapper(object):
             'defaultmapping.py')
         mappings = {}
         execfile(mapping_file, mappings)
-        self.tag_mapping = TagMapper([m for n, m in mappings.iteritems() 
+        self.tag_mapping = TagMapper([m for n, m in mappings.iteritems()
             if isinstance(m, imposm.mapping.Mapping)])
-    
+
     def test_tag_filter_nodes(self):
         tag_filter_for_nodes = self.tag_mapping.tag_filter_for_nodes()
         tagfilter = lambda x: tag_filter_for_nodes(x) or x
-        
+
         eq_(tagfilter({'name': 'foo'}), {})
         eq_(tagfilter({'name': 'foo', 'unknown': 'baz'}), {})
         eq_(tagfilter({'name': 'foo', 'place': 'unknown'}), {})
@@ -45,7 +45,7 @@ class TestTagMapper(object):
     def test_tag_filter_ways(self):
         tag_filter_for_ways = self.tag_mapping.tag_filter_for_ways()
         tagfilter = lambda x: tag_filter_for_ways(x) or x
-        
+
         eq_(tagfilter({'name': 'foo'}), {})
         eq_(tagfilter({'name': 'foo', 'unknown': 'baz'}), {})
         eq_(tagfilter({'name': 'foo', 'highway': 'unknown'}), {})
@@ -66,7 +66,7 @@ class TestTagMapper(object):
     def test_tag_filter_relations(self):
         tag_filter_for_relations = self.tag_mapping.tag_filter_for_relations()
         tagfilter = lambda x: tag_filter_for_relations(x) or x
-        
+
         eq_(tagfilter({'name': 'foo'}), {})
         eq_(tagfilter({'name': 'foo', 'unknown': 'baz'}), {})
         eq_(tagfilter({'name': 'foo', 'landuse': 'unknown'}), {})
@@ -81,7 +81,7 @@ class TestTagMapper(object):
 
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'multipolygon'}),
             {'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'multipolygon'})
-        
+
         # boundary relation for boundary
         eq_(tagfilter({'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'boundary'}),
             {'name': 'foo', 'landuse': 'farm', 'boundary': 'administrative', 'type': 'boundary'})
@@ -99,7 +99,7 @@ class TestTagMapper(object):
         eq_mapping(for_nodes({'place': 'unknown'}), [])
         eq_mapping(for_nodes({'place': 'city'}), [(('place', 'city'), ('places',))])
         eq_mapping(for_nodes({'place': 'city', 'highway': 'unknown'}), [(('place', 'city'), ('places',))])
-        eq_mapping(for_nodes({'place': 'city', 'highway': 'bus_stop'}), 
+        eq_mapping(for_nodes({'place': 'city', 'highway': 'bus_stop'}),
             [(('place', 'city'), ('places',)), (('highway', 'bus_stop'), ('transport_points',))])
 
     def test_mapping_for_ways(self):
@@ -107,12 +107,12 @@ class TestTagMapper(object):
         eq_mapping(for_ways({'unknown': 'baz'}), [])
         eq_mapping(for_ways({'highway': 'unknown'}), [])
         eq_mapping(for_ways({'highway': 'track'}), [(('highway', 'track'), ('minorroads',))])
-        eq_mapping(for_ways({'highway': 'secondary', 'railway': 'tram'}), 
+        eq_mapping(for_ways({'highway': 'secondary', 'railway': 'tram'}),
             [(('railway', 'tram'), ('railways',)), (('highway', 'secondary'), ('mainroads',))])
-        eq_mapping(for_ways({'highway': 'footway'}), 
+        eq_mapping(for_ways({'highway': 'footway'}),
             [(('highway', 'footway'), ('minorroads',)), (('highway', 'footway'), ('landusages',))])
 
-        eq_mapping(for_ways({'highway': 'footway', 'landuse': 'park'}), 
+        eq_mapping(for_ways({'highway': 'footway', 'landuse': 'park'}),
             [(('highway', 'footway'), ('minorroads',)), (('landuse', 'park'), ('landusages',))])
 
     def test_mapping_for_relation(self):
@@ -122,14 +122,28 @@ class TestTagMapper(object):
         eq_mapping(for_relations({'landuse': 'farm'}), [(('landuse', 'farm'), ('landusages',))])
         eq_mapping(for_relations({'landuse': 'farm', 'highway': 'secondary'}),
             [(('landuse', 'farm'), ('landusages',))])
-        
+
         eq_mapping(for_relations({'landuse': 'farm', 'aeroway': 'apron'}),
             [(('aeroway', 'apron'), ('transport_areas',)), (('landuse', 'farm'), ('landusages',))])
 
         eq_mapping(for_relations({'boundary': 'administrative', 'admin_level': '8'}),
             [(('boundary', 'administrative'), ('admin',))])
 
-
+    def test_multiple_mappings(self):
+        roads = LineStrings(
+            name = 'roads',
+            mapping = {
+                'highway': ('secondary', ),
+                'railway': ('tram', ),
+            }
+        )
+        tag_mapping = TagMapper([roads])
+        for_ways = tag_mapping.for_ways
+        eq_mapping(for_ways({'unknown': 'baz'}), [])
+        eq_mapping(for_ways({'highway': 'unknown'}), [])
+        eq_mapping(for_ways({'highway': 'secondary'}), [(('highway', 'secondary'), ('roads',))])
+        eq_mapping(for_ways({'highway': 'secondary', 'railway': 'tram'}),
+            [(('railway', 'tram'), ('roads',)), (('highway', 'secondary'), ('roads',))])
 
 
 def eq_mapping(actual_mappings, expected_mappings):
