@@ -261,6 +261,11 @@ class TagMapper(object):
             if tags.get('type') not in ('multipolygon', 'boundary', 'land_area'):
                 tags.clear()
                 return
+            if tags['type'] == 'boundary' and 'boundary' not in tags:
+                # a lot of the boundary relations are not multipolygon
+                # only import with boundary tags (e.g. boundary=administrative)
+                tags.clear()
+                return
             tag_count = len(tags)
             _rel_filter(tags)
             if len(tags) < tag_count:
