@@ -270,7 +270,7 @@ class RelationProcess(ImporterProcess):
                 mappings = self.mapper.for_relations(relation.tags)
                 if mappings:
                     inserted = self.insert(mappings, relation.osm_id, relation.geom, relation.tags)
-                    if inserted and any(getattr(m, 'skip_inserted_ways', False) for _, m in mappings):
+                    if inserted and any(getattr(m, 'skip_inserted_ways', False) for _, ms in mappings for m in ms):
                         builder.mark_inserted_ways(self.inserted_way_queue)
 
 class RelationProcessDict(RelationProcess, DictBasedImporter):
