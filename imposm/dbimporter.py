@@ -295,10 +295,12 @@ def mappings_intersect(a, b):
     True
     """
 
-    for _, a_mappings in a:
+    for a_key_val, a_mappings in a:
         for a_map in a_mappings:
-            if any(True for _, b_mappings in b for b_map in b_mappings if a_map == b_map):
-                return True
+            for b_key_val, b_mappings in b:
+                for b_map in b_mappings:
+                    if a_key_val == b_key_val and a_map == b_map:
+                        return True
 
     return False
 
