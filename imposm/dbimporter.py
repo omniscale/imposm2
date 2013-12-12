@@ -272,7 +272,7 @@ class RelationProcess(ImporterProcess):
                 inserted = False
                 if mappings:
                     inserted = self.insert(mappings, relation.osm_id, relation.geom, relation.tags)
-                if inserted and any(getattr(m, 'skip_inserted_ways', False) for _, ms in mappings for m in ms):
+                if inserted and any(m.skip_inserted_ways for _, ms in mappings for m in ms):
                     for w in relation.ways:
                         if mappings_intersect(mappings, self.mapper.for_ways(w.tags)):
                             self.inserted_way_queue.put(w.osm_id)
