@@ -268,10 +268,39 @@ class RelationProcess(ImporterProcess):
                         log.debug(ex)
                     continue
                 mappings = self.mapper.for_relations(relation.tags)
+
+                inserted = False
                 if mappings:
                     inserted = self.insert(mappings, relation.osm_id, relation.geom, relation.tags)
-                    if inserted and any(getattr(m, 'skip_inserted_ways', False) for _, ms in mappings for m in ms):
-                        builder.mark_inserted_ways(self.inserted_way_queue)
+                if inserted and any(getattr(m, 'skip_inserted_ways', False) for _, ms in mappings for m in ms):
+                    for w in relation.ways:
+                        if mappings_intersect(mappings, self.mapper.for_ways(w.tags)):
+                            self.inserted_way_queue.put(w.osm_id)
+
+
+def mappings_intersect(a, b):
+    """
+    True if `a` and `b` share a mapping.
+    Mapping is a list of ((key, value), (mapping1, mapping2,...)).
+
+    >>> mappings_intersect([(('waterway', 'riverbank'), ('mapping_waterareas',))],
+    ... [(('waterway', 'riverbank'), ('mapping_waterareas',))])
+    True
+    >>> mappings_intersect([(('waterway', 'riverbank'), ('mapping_waterareas',))],
+    ... [(('place', 'island'), ('mapping_landusage',))])
+    False
+    >>> mappings_intersect([(('waterway', 'riverbank'), ('mapping_waterareas',))],
+    ... [(('place', 'island'), ('mapping_landusage',)),
+    ...  (('waterway', 'riverbank'), ('mapping_waterareas',))])
+    True
+    """
+
+    for _, a_mappings in a:
+        for a_map in a_mappings:
+            if any(True for _, b_mappings in b for b_map in b_mappings if a_map == b_map):
+                return True
+
+    return False
 
 class RelationProcessDict(RelationProcess, DictBasedImporter):
     pass

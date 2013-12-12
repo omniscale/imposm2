@@ -1,11 +1,11 @@
 # Copyright 2011 Omniscale (http://omniscale.com)
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -51,7 +51,7 @@ class RelationBuilderBase(object):
         self.linestring_builder = LineStringBuilder()
         self.ways_cache = ways_cache
         self.coords_cache = coords_cache
-    
+
     def fetch_ways(self):
         ways = []
         for member in self.relation.members:
@@ -68,7 +68,7 @@ class RelationBuilderBase(object):
                 log.warn('multiple linestrings in way %s (relation %s)',
                        member[0], self.relation.osm_id)
                 raise IncompletePolygonError()
-            
+
             way.coords = self.fetch_way_coords(way)
             if way.coords is None:
                 if not imposm.config.import_partial_relations:
@@ -76,26 +76,26 @@ class RelationBuilderBase(object):
             else:
                 ways.append(way)
         return ways
-    
+
     def build_rings(self, ways):
         rings = []
         incomplete_rings = []
-        
+
         for ring in (Ring(w) for w in ways):
             if ring.is_closed():
                 ring.geom = self.polygon_builder.build_checked_geom(ring, validate=self.validate_rings)
                 rings.append(ring)
             else:
                 incomplete_rings.append(ring)
-        
+
         merged_rings = self.build_ring_from_incomplete(incomplete_rings)
         if len(rings) + len(merged_rings) == 0:
             raise IncompletePolygonError('linestrings from relation %s have no rings' % (self.relation.osm_id, ))
-        
+
         return rings + merged_rings
-        
+
     def build_ring_from_incomplete(self, incomplete_rings):
-        
+
         rings = merge_rings(incomplete_rings)
 
         for ring in rings[:]:
@@ -108,7 +108,7 @@ class RelationBuilderBase(object):
                         self.relation.osm_id)
             ring.geom = self.polygon_builder.build_checked_geom(ring, validate=self.validate_rings)
         return rings
-    
+
     def fetch_way_coords(self, way):
         """
         Fetch all coordinates of way.refs.
@@ -119,19 +119,13 @@ class RelationBuilderBase(object):
                 way.osm_id, self.relation.osm_id)
             return None
         return coords
-    
+
     def build_relation_geometry(self, rings):
         """
         Build relation geometry from rings.
         """
         raise NotImplementedError()
-        
-    
-    def mark_inserted_ways(self, inserted_ways_queue):
-        for w in self.relation.ways:
-            if w.inserted:
-                inserted_ways_queue.put(w.osm_id)
-    
+
     def build(self):
         try:
             time_start = time.time()
@@ -151,7 +145,7 @@ class RelationBuilderBase(object):
             time_start = time.time()
             self.build_relation_geometry(rings)
             time_relations = time.time() - time_start
-            
+
             if time_ways + time_rings + time_relations > imposm.config.imposm_multipolygon_report:
                 log.warn('building relation %d with %d ways (%.1fms) and %d rings (%.1fms) took %.1fms',
                     self.relation.osm_id, len(ways), time_ways*1000, len(rings), time_rings*1000, time_relations*1000)
@@ -172,12 +166,12 @@ class UnionRelationBuilder(RelationBuilderBase):
         Build relation geometry from rings.
         """
         rings.sort(key=lambda x: x.geom.area, reverse=True)
-        
+
         # add/subtract all rings from largest
         polygon = rings[0]
         rel_tags = relation_tags(self.relation.tags, polygon.tags)
         polygon.mark_as_inserted(rel_tags)
-        
+
         geom = polygon.geom
         for r in rings[1:]:
             if geom.contains(r.geom):
@@ -195,7 +189,7 @@ class UnionRelationBuilder(RelationBuilderBase):
         if not geom.is_valid:
             raise InvalidGeometryError('multipolygon relation (%s) result is invalid' %
                                        self.relation.osm_id)
-        
+
         self.relation.geom = geom
         self.relation.tags = rel_tags
         all_ways = polygon.ways
@@ -205,7 +199,7 @@ class UnionRelationBuilder(RelationBuilderBase):
 
 class ContainsRelationBuilder(RelationBuilderBase):
     validate_rings = False
-    
+
     def _ring_is_hole(self, rings, idx):
         """
         Returns True if rings[idx] is a hole, False if it is a
@@ -217,9 +211,9 @@ class ContainsRelationBuilder(RelationBuilderBase):
             if idx is None:
                 break
             contained_counter += 1
-        
+
         return contained_counter % 2 == 1
-    
+
     def build_relation_geometry(self, rings):
         """
         Build relation geometry from rings.
@@ -239,10 +233,10 @@ class ContainsRelationBuilder(RelationBuilderBase):
                         # e.g. j is hole inside a hole (i)
                         rings[rings[j].contained_by].holes.discard(rings[j])
                         shells.discard(rings[j])
-                    
+
                     # remember parent
                     rings[j].contained_by = i
-                    
+
                     # add ring as hole or shell
                     if self._ring_is_hole(rings, j):
                         rings[i].holes.add(rings[j])
@@ -251,7 +245,7 @@ class ContainsRelationBuilder(RelationBuilderBase):
             if rings[i].contained_by is None:
                 # add as shell if it is not a hole
                 shells.add(rings[i])
-        
+
         rel_tags = relation_tags(self.relation.tags, rings[0].tags)
 
         # build polygons from rings
@@ -263,14 +257,14 @@ class ContainsRelationBuilder(RelationBuilderBase):
             for hole in shell.holes:
                 hole.mark_as_inserted(rel_tags)
                 interiors.append(hole.geom.exterior)
-            
+
             polygons.append(shapely.geometry.Polygon(exterior, interiors))
-            
+
         if len(polygons) == 1:
             geom = polygons[0]
         else:
             geom = shapely.geometry.MultiPolygon(polygons)
-        
+
         geom = imposm.geom.validate_and_simplify(geom)
         if not geom.is_valid:
             raise InvalidGeometryError('multipolygon relation (%s) result is invalid' %
@@ -281,14 +275,14 @@ class ContainsRelationBuilder(RelationBuilderBase):
         for r in rings:
             all_ways.extend(r.ways)
         self.relation.ways = all_ways
-    
+
 
 def relation_tags(rel_tags, way_tags):
     result = dict(rel_tags)
-    
+
     if 'type' in result: del result['type']
     if 'name' in result: del result['name']
-    
+
     if not result:
         # use way_tags
         result.update(way_tags)
@@ -296,7 +290,7 @@ def relation_tags(rel_tags, way_tags):
         if 'name' in rel_tags:
             # put back name
             result['name'] = rel_tags['name']
-        
+
     return result
 
 def tags_differ(a, b):
@@ -376,10 +370,10 @@ class Ring(object):
         self.inserted = way.inserted
         self.contained_by = None
         self.holes = set()
-    
+
     def __repr__(self):
         return 'Ring(%r, %r, %r)' % (self.osm_id, self.tags, self.ways)
-    
+
     def merge(self, ring, without_refs=False):
         """
         Try to merge `ring.refs` with this ring.
@@ -391,15 +385,15 @@ class Ring(object):
             result = merge(self.refs, ring.refs)
             if result is None:
                 return None
-        
+
         self.ways.extend(ring.ways)
         self.refs = [result]
         self.tags.update(ring.tags)
         return self
-    
+
     def is_closed(self):
         return len(self.refs) >= 4 and self.refs[0] == self.refs[-1]
-    
+
     def mark_as_inserted(self, tags):
         for w in self.ways:
             if tags_same_or_empty(tags, w.tags):
