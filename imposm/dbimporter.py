@@ -20,7 +20,7 @@ from Queue import Queue
 
 from imposm.base import OSMElem
 from imposm.geom import IncompletePolygonError
-from imposm.mapping import DropElem
+from imposm.mapping import DropElem, PolygonTable
 from imposm.multipolygon import RelationBuilder
 from imposm.util import setproctitle
 
@@ -195,6 +195,15 @@ class NodeProcessDict(NodeProcess, DictBasedImporter):
 class NodeProcessTuple(NodeProcess, TupleBasedImporter):
     pass
 
+
+def filter_out_polygon_mappings(mappings):
+    result = []
+    for tag, ms in mappings:
+        ms = [m for m in ms if m.table != PolygonTable]
+        if ms:
+            result.append((tag, ms))
+    return result
+
 class WayProcess(ImporterProcess):
     name = 'way'
 
@@ -222,12 +231,15 @@ class WayProcess(ImporterProcess):
                     except StopIteration:
                         skip_id = 2**64
 
-                if skip_id == way.osm_id:
-                    continue
-
                 mappings = self.mapper.for_ways(way.tags)
                 if not mappings:
                     continue
+
+                if skip_id == way.osm_id:
+                    # skip polygon mappings, way was already inserted as MultiPolygon
+                    mappings = filter_out_polygon_mappings(mappings)
+                    if not mappings:
+                        continue
 
                 coords = coords_cache.get_coords(way.refs)
 
@@ -274,7 +286,7 @@ class RelationProcess(ImporterProcess):
                     inserted = self.insert(mappings, relation.osm_id, relation.geom, relation.tags)
                 if inserted and any(m.skip_inserted_ways for _, ms in mappings for m in ms):
                     for w in relation.ways:
-                        if mappings_intersect(mappings, self.mapper.for_ways(w.tags)):
+                        if mappings_intersect(mappings, self.mapper.for_relations(w.tags)):
                             self.inserted_way_queue.put(w.osm_id)
 
 
