@@ -287,7 +287,7 @@ class TagMapper(object):
                 mappings = []
                 if tag_value in tag_map[tag_name]:
                     mappings.extend(tag_map[tag_name][tag_value])
-                elif ANY in tag_map[tag_name]:
+                if ANY in tag_map[tag_name]:
                     mappings.extend(tag_map[tag_name][ANY])
 
                 new_mappings = []
