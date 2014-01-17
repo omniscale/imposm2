@@ -312,6 +312,8 @@ def merge_rings(rings):
     """
     endpoints = {}
     for ring in rings:
+        if len(ring.refs) < 2:
+            continue
         left = ring.refs[0]
         right = ring.refs[-1]
         orig_ring = None
