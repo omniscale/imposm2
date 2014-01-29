@@ -242,7 +242,7 @@ class PostGISDB(object):
         self.remove_views(backup_prefix)
         self.remove_tables(backup_prefix)
 
-        cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (existing_prefix + '%', ))
+        cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename like %s", (existing_prefix + '%', ))
         existing_tables = []
         for row in cur:
             table_name = row[0]
@@ -250,7 +250,7 @@ class PostGISDB(object):
                 # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_tables.append(table_name)
 
-        cur.execute('SELECT viewname FROM pg_views WHERE viewname like %s', (existing_prefix + '%', ))
+        cur.execute("SELECT viewname FROM pg_views WHERE schemaname = 'public' AND viewname like %s", (existing_prefix + '%', ))
         existing_views = []
         for row in cur:
             view_name = row[0]
@@ -258,7 +258,7 @@ class PostGISDB(object):
                 # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_views.append(view_name)
 
-        cur.execute('SELECT indexname FROM pg_indexes WHERE indexname like %s', (existing_prefix + '%', ))
+        cur.execute("SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname like %s", (existing_prefix + '%', ))
         existing_indexes = set()
         for row in cur:
             index_name = row[0]
@@ -274,19 +274,19 @@ class PostGISDB(object):
                 # check for overlapping prefixes: osm_ but not osm_new_ or osm_backup_
                 existing_seq.add(seq_name)
 
-        cur.execute('SELECT tablename FROM pg_tables WHERE tablename like %s', (new_prefix + '%', ))
+        cur.execute("SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename like %s", (new_prefix + '%', ))
         new_tables = []
         for row in cur:
             table_name = row[0]
             new_tables.append(table_name)
 
-        cur.execute('SELECT viewname FROM pg_views WHERE viewname like %s', (new_prefix + '%', ))
+        cur.execute("SELECT viewname FROM pg_views WHERE schemaname = 'public' AND viewname like %s", (new_prefix + '%', ))
         new_views = []
         for row in cur:
             view_name = row[0]
             new_views.append(view_name)
 
-        cur.execute('SELECT indexname FROM pg_indexes WHERE indexname like %s', (new_prefix + '%', ))
+        cur.execute("SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname like %s", (new_prefix + '%', ))
         new_indexes = set()
         for row in cur:
             index_name = row[0]
