@@ -284,7 +284,6 @@ class LimitPolygonGeometry(object):
         # GEOS internal data structure for prepared geometries grows over time,
         # recreate to limit memory consumption
         if not self._prepared_geom or self._prepared_counter > self._prepared_max:
-            print 'create prepared'
             self._prepared_geom = shapely.prepared.prep(self._geom)
             self._prepared_counter = 0
         self._prepared_counter += 1
