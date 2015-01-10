@@ -143,7 +143,7 @@ class TestTagMapper(object):
         eq_mapping(for_ways({'highway': 'unknown'}), [])
         eq_mapping(for_ways({'highway': 'secondary'}), [(('highway', 'secondary'), ('roads',))])
         eq_mapping(for_ways({'highway': 'secondary', 'railway': 'tram'}),
-            [(('railway', 'tram'), ('roads',)), (('highway', 'secondary'), ('roads',))])
+            [(('railway', 'tram'), ('roads',)), ]) # returns only one mapping
 
 
 def eq_mapping(actual_mappings, expected_mappings):
