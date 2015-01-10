@@ -1,7 +1,7 @@
 Tutorial
 ========
 
-The import process is separated into multiple steps.
+The import process is separated into multiple steps. You can combine most steps in one command, but we will explain each one in detail here.
 
 Create database
 ---------------
@@ -26,7 +26,7 @@ For detailed step-by-step information, read the excellent `OpenStreetMap PostGIS
 Reading
 -------
 
-The first step is the reading of the OpenStreetMap data. Building the way and relation geometries requires random access to all nodes and ways, but this is not supported by the XML or PBF data formats. Imposm needs to stores all nodes, ways and relations in an intermediary data store that allows random access to all elements. It does this on-disk to keep the memory usage of Imposm low. Imposm uses TokyoCabinet key-value databases for this, which are fast and compact.
+The first step is the reading of the OpenStreetMap data. Building the way and relation geometries requires random access to all nodes and ways, but this is not supported by the XML or PBF data formats. Imposm needs to store all nodes, ways and relations in an intermediary data store that allows random access to all elements. It does this on-disk to keep the memory usage of Imposm low. Imposm uses TokyoCabinet key-value databases for this, which are fast and compact.
 
 ::
 
