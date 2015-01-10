@@ -1,6 +1,19 @@
 Changelog
 ---------
 
+
+2.6.0 2015-01-10
+~~~~~~~~~~~~~~~~
+
+- improve load performance of large limit-to geometries
+- check connection before reading and fail if unable to connect
+- new BoundaryPolygons mapping class that keeps inserted ways
+- quote column names when generalizing table
+- only skip import of polygons if way was inserted as multipolygon
+- only look for tables/views/indexes with schema=public when rotating tables
+- updated generated code for internal cache
+- minor fixes
+
 2.5.0 2012-12-06
 ~~~~~~~~~~~~~~~~
 
