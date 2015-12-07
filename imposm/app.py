@@ -334,6 +334,10 @@ def main(argv=None):
 
     if options.remove_backup_tables:
         db = DB(db_conf)
+        # remove views before tables, because remove_tables will also remove
+        # views via CASCADE and we need the view names for cleanup of
+        # geometry_columns
+        db.remove_views(options.table_prefix_backup)
         db.remove_tables(options.table_prefix_backup)
         db.commit()
 
